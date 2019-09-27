@@ -283,6 +283,9 @@ return `default-directory' if no project was found."
 ;;;;;; keybindings
 (when (and (featurep! :editor evil)
            (featurep! :app calendar))
+  (after! which-key
+    (add-to-list 'which-key-replacement-alist
+                 '((nil . "=calendar") . (nil . "Calendar"))))
   (map! :leader
         (:prefix "a"
           "c" #'=calendar)))
@@ -364,23 +367,9 @@ return `default-directory' if no project was found."
          ("C-c , x" . howm-list-mark-ring)
          ("C-c , y" . howm-list-schedule))
   :init
-  (defun =howm ()
-    (interactive)
-    (when (featurep 'evil)
-      (require 'howm)
-      (map! :leader
-            (:prefix "a"
-              "," (global-key-binding (kbd howm-prefix))))
-      (setq prefix-arg current-prefix-arg
-            unread-command-events (listify-key-sequence (kbd howm-prefix)))))
   (after! which-key
     (add-to-list 'which-key-replacement-alist
-                 '(("\\`SPC a ,\\'" . nil) . ("C-c ," . "howm")))
-    (add-to-list 'which-key-replacement-alist
                  '(("\\`C-c ,\\'" . nil) . (nil . "howm"))))
-  (map! :leader
-        (:prefix "a"
-          "," #'=howm))
   (add-hook! 'org-mode-hook
     (map! :map org-mode-map
           "C-c ," nil))
@@ -530,6 +519,8 @@ return `default-directory' if no project was found."
     '(("^\\*howm" :ignore t)
       ("^\\*eww" :size 0.6 :side right)
       ("^\\*deadgrep" :size 0.6 :side right)
+      ("^\\*wiki-summary" :size 0.35)
+      ("^\\*Synonyms List" :size 0.35)
       ("^\\*leetcode" :ignore t)
       ("^\\*assembly\\*$" :ignore t)
       ("^\\*dungeon\\*$" :ignore t)
@@ -694,7 +685,10 @@ return `default-directory' if no project was found."
      c-w
      commentary
      prettify))
-  (setq lispyville-motions-put-into-special nil))
+  (setq lispyville-motions-put-into-special nil)
+  (map! :map lispyville-mode-map
+        :nmvie "<S-right>" #'lispyville-forward-atom-end
+        :nmvie "<S-left>" #'lispyville-backward-atom-begin))
 ;;; lispy
 (when (featurep! :editor lispy)
   (after! lispy
@@ -807,7 +801,7 @@ return `default-directory' if no project was found."
     :init
     (after! which-key
       (add-to-list 'which-key-replacement-alist
-                   '((nil . "=mu4e") . (nil . "mu4e"))))
+                   '((nil . "=mu4e") . (nil . "Mu4e"))))
     (after! notmuch
       (require 'mu4e))
     :config
@@ -870,7 +864,10 @@ mail-count is the count of mails for which the string is to displayed"
     :init
     (after! which-key
       (add-to-list 'which-key-replacement-alist
-                   '((nil . "=notmuch") . (nil . "notmuch"))))
+                   '((nil . "=notmuch") . (nil . "Notmuch")))
+
+      (add-to-list 'which-key-replacement-alist
+                   '((nil . "counsel-notmuch") . (nil . "Search emails"))))
     :config
     (setq notmuch-init-file "~/.config/notmuch/notmuchrc")
     ;; (defadvice! mu4e-update-mail-and-index-a  (info)
@@ -1039,10 +1036,26 @@ mail-count is the count of mails for which the string is to displayed"
    (:leader
      (:prefix "u"
        :nv "u" #'counsel-unicode-char))))
-(after! wordnut
+(use-package! wordnut
+  :defer-incrementally t
+  :bind (:map doom-leader-map
+          ("alw" . wordnut-search))
+  :init
+  (after! which-key
+    (add-to-list 'which-key-replacement-alist
+                 '((nil . "wordnut-search") . (nil . "Wordnut search"))))
+  :config
   (map! :map wordnut-mode-map
         :nmv "q" #'quit-window))
-(after! synosaurus
+(use-package! synosaurus
+  :defer-incrementally t
+  :bind (:map doom-leader-map
+          ("alt" . synosaurus-lookup))
+  :init
+  (after! which-key
+    (add-to-list 'which-key-replacement-alist
+                 '((nil . "synosaurus-lookup") . (nil . "Synosaurus search"))))
+  :config
   (map! :map synosaurus-list-mode-map
         :nmv "q" #'quit-window))
 (use-package! auto-capitalize
@@ -1052,10 +1065,8 @@ mail-count is the count of mails for which the string is to displayed"
 (use-package! wiki-summary
   :defer-incrementally t
   :commands (wiki-summary wiki-summary-insert)
-  ;; :init
-  ;; (advice-add #'wiki-summary/format-summary-in-buffer :override #'my/format-summary-in-buffer)
-  )
-
+  :bind (:map doom-leader-map
+          ("alW" . wiki-summary)))
 (when (featurep! :tools flyspell +aspell)
   (after! ispell
     (setq ispell-quietly nil
@@ -1200,6 +1211,12 @@ mail-count is the count of mails for which the string is to displayed"
   :defer-incrementally t
   :commands (font-lock-studio))
 ;;; amusement
+(after! which-key
+  (add-to-list 'which-key-replacement-alist
+               '(("\\`SPC a\\'" . nil) . (nil . "apps"))))
+(after! which-key
+  (add-to-list 'which-key-replacement-alist
+               '(("\\`SPC a l\\'" . nil) . (nil . "lookup"))))
 ;;;; games
 (after! which-key
   (add-to-list 'which-key-replacement-alist
@@ -1389,7 +1406,7 @@ mail-count is the count of mails for which the string is to displayed"
   :init
   (after! which-key
     (add-to-list 'which-key-replacement-alist
-                 '((nil . "faith") . (nil . "Chuch of Emacs")))))
+                 '((nil . "faith-quote") . (nil . "Chuch of Emacs")))))
 (use-package! cookie1
   :commands (cookie)
   :bind (:map doom-leader-map

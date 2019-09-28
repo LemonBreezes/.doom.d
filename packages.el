@@ -209,6 +209,7 @@
 (package! auto-compile)
 (package! edwina)
 (package! undo-propose)
+(package! disk-usage)
 ;; (package! esh-autosuggest :recipe (:host github :repo "dieggsy/esh-autosuggest" :files ("esh-autosuggest.el")))
 (package! aweshell :recipe (:host github :repo "manateelazycat/aweshell"))
 ;; (package! ivy-exwm :recipe (:host github :repo "pjones/ivy-exwm"))

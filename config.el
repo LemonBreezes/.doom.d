@@ -1050,7 +1050,7 @@ mail-count is the count of mails for which the string is to displayed"
 (use-package! synosaurus
   :defer-incrementally t
   :bind (:map doom-leader-map
-          ("alT" . synosaurus-lookup))
+          ("alt" . synosaurus-lookup))
   :init
   (after! which-key
     (add-to-list 'which-key-replacement-alist

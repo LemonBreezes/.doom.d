@@ -1050,11 +1050,11 @@ mail-count is the count of mails for which the string is to displayed"
 (use-package! synosaurus
   :defer-incrementally t
   :bind (:map doom-leader-map
-          ("alt" . synosaurus-lookup))
+          ("alT" . synosaurus-lookup))
   :init
   (after! which-key
     (add-to-list 'which-key-replacement-alist
-                 '((nil . "synosaurus-lookup") . (nil . "Synosaurus search"))))
+                 '((nil . "synosaurus-lookup") . (nil . "Thesaurus"))))
   :config
   (map! :map synosaurus-list-mode-map
         :nmv "q" #'quit-window))
@@ -1619,6 +1619,12 @@ Return a new buffer or BUF with the code in it."
 ;;;; community-driven man pages
 (use-package! tldr
   :commands (tldr)
+  :bind (:map doom-leader-map
+          ("alt" . tldr))
+  :init
+  (after! which-key
+    (add-to-list 'which-key-replacement-alist
+                 '((nil . "tldr") . (nil . "Community-driven manpages"))))
   :config
   (setq tldr-directory-path (concat doom-etc-dir "tldr/")))
 ;;;; rtorrent

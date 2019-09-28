@@ -1493,6 +1493,15 @@ mail-count is the count of mails for which the string is to displayed"
     (add-to-list 'which-key-replacement-alist
                  '((nil . "hanoi-unix-64") . (nil . "Hanoi Unix 64")))))
 ;;; miscellaneous apps
+;;;; disk usage
+(use-package! disk-usage
+  :commands disk-usage
+  :bind (:map doom-leader-map
+          ("ad" . disk-usage))
+  :init
+  (after! which-key
+    (add-to-list 'which-key-replacement-alist
+                 '((nil . "disk-usage") . (nil . "Disk usage")))))
 ;;;; speed reading
 (use-package! spray
   :defer-incrementally t
@@ -1612,7 +1621,7 @@ Return a new buffer or BUF with the code in it."
 (use-package! stumpwm-mode
   :defer-incrementally t
   :mode (".stumpwmrc" . stumpwm-mode))
-;;;; Magnifying glass
+;;;; magnifying glass
 (use-package! downplay-mode
   :defer-incrementally t
   :bind (("C-c z" . downplay)))

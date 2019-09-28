@@ -1620,7 +1620,7 @@ Return a new buffer or BUF with the code in it."
 (use-package! tldr
   :commands (tldr)
   :bind (:map doom-leader-map
-          ("alt" . tldr))
+          ("alc" . tldr))
   :init
   (after! which-key
     (add-to-list 'which-key-replacement-alist

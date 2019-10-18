@@ -1,5 +1,91 @@
 ;; ~/.doom.d/config.el -*- lexical-binding: t; -*-
 ;;; preface
+;;;; essential bindings
+(map! "C-M-s-b" #'bookmark-jump)
+(define-key! :keymaps +default-minibuffer-maps
+  [escape] #'abort-recursive-edit)
+(map! "C-M-;" #'comment-or-uncomment-region
+      "s-u" #'previous-buffer
+      "s-i" #'next-buffer
+      ;; Map movement keys to home row
+      ;; TODO Remap word-movement and symbol-movement keys?
+      (:when (display-graphic-p)
+        "<return>" #'newline-and-indent
+        "<tab>" #'indent-for-tab-command
+        "C-m" #'backward-char
+        "C-i" #'forward-char
+        "C-." #'end-of-line
+        "C-," #'beginning-of-line
+        "C-e" #'previous-line
+        "C->" #'end-of-buffer
+        "C-<" #'beginning-of-buffer
+        "C-{" #'backward-paragraph
+        "C-}" #'forward-paragraph
+        (:map button-map
+          "RET" nil
+          "<return>" #'push-button)
+        (:map minibuffer-local-map
+          "<return>" #'exit-minibuffer
+          "RET" nil)
+        (:map minibuffer-local-ns-map
+          "TAB" nil
+          "<tab>" #'exit-minibuffer)
+        (:map read-expression-map
+          "TAB" nil
+          "<tab>" #'completion-at-point)
+        (:map completion-in-region-mode-map
+          "TAB" nil
+          "<tab>" #'completion-at-point)
+        (:map minibuffer-local-shell-command-map
+          "TAB" nil
+          "<tab>" #'completion-at-point)
+        (:after dired
+          "RET" nil
+          "<return>" #'dired-find-file)
+        (:after lispy
+          (:map lispy-mode-map
+            "<return>" #'lispy-newline-and-indent-plain
+            "<tab>" #'lispy-tab
+            "C-m" #'backward-char
+            "TAB" nil
+            "C-." #'lispy-move-end-of-line
+            "C-," #'lispy-move-beginning-of-line
+            "C-e" #'previous-line))
+        (:after company-coq
+          (:map company-coq-map
+            "RET" nil
+            "<return>" #'company-coq-maybe-exit-snippet
+            "C-m" #'backward-char))
+        (:after outshine
+          (:map outshine-mode-map
+            "<tab>" #'outshine-kbd-TAB
+            "TAB" nil
+            ))
+        (:after helpful
+          (:map helpful-mode-map
+            "<return>" #'helpful-visit-reference
+            "<tab>" #'forward-button
+            "C-m" #'backward-char
+            "TAB" nil))
+        (:after org
+          (:map org-mode-map
+            "<return>" #'org-return
+            "TAB" nil
+            "C-." #'org-end-of-line
+            "C-," #'org-beginning-of-line
+            "C-e" nil
+            "RET" nil))
+        (:after ivy
+          (:map ivy-minibuffer-map
+            "C-m" #'backward-char
+            "C-i" #'ivy-forward-char
+            "<tab>" #'ivy-alt-done
+            "<return>" #'ivy-done)))
+      (:when (and (featurep! :term eshell)
+                  (featurep! :term vterm))
+        "M-`" #'+vterm/toggle
+        (:map vterm-mode-mpa
+          "M-`" #'+vterm/toggle)))
 ;;;; delete by moving to trash
 (setq delete-by-moving-to-trash t)
 ;;;; speed up garbage collection at the cost of increased memory usage.
@@ -14,7 +100,7 @@
   (transient-mark-mode -1))
 ;;;; setup my favorite fonts
 (setq doom-font (font-spec :family "Iosevka" :size 16)
-      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 17)
+      ;; doom-variable-pitch-font (font-spec :family "Fira Sans" :size 17)
       doom-unicode-font (font-spec :family "Dejavu Sans Mono" :size 19)
       doom-serif-font (font-spec :family "Dejavu Serif" :size 19))
 ;; doom-big-font (font-spec :family "sf mono" :size 18)
@@ -25,7 +111,7 @@
 (after! lpr (setq printer-name "Brother_HL-L2320D_series"))
 (after! ps-print (setq ps-printer-name "Brother_HL-L2320D_series"))
 ;;;; disable line-number
-(after! display-line-numbers (setq display-line-numbers-type nil))
+(after! display-line-numbers (setq display-line-numbers-type 'relative))
 ;;;; this is for smoother scrolling.
 (setq mouse-wheel-scroll-amount
       '(1 ((shift) . 2) ((control) . 2))
@@ -34,13 +120,8 @@
       mouse-scroll-min-lines 0)
 ;;;; do not ask me to re-enter passwords
 (setq password-cache-expiry most-positive-fixnum)
-
 ;;;; my doom-private-dir has many files.
 (setq doom-projectile-cache-limit 75000)
-;;;; nixos does not want me to compile files outside of nix.
-;; (advice-add #'emacsql-sqlite-compile :around (lambda (&rest _args) t))
-;;;; set default web browser
-;; (setq browse-url-browser-function #'eww-browse-url)
 ;;;; add startpage as search provider
 (when (boundp '+lookup-provider-url-alist)
   (let ((startpage-entry
@@ -50,119 +131,177 @@
     (add-to-list '+lookup-provider-url-alist startpage-entry)))
 ;;;; turn off shift selection
 (setq shift-select-mode nil)
+;;;; preview minibuffer defaults
+(defvar mcfly-commands
+  '(query-replace-regexp
+    query-replace
+    flush-lines
+    keep-lines))
+
+(defvar mcfly-back-commands
+  '(self-insert-command
+    ivy-yank-char
+    ivy-yank-word
+    ivy-yank-symbol))
+
+(defun mcfly-back-to-present ()
+  (remove-hook 'pre-command-hook 'mcfly-back-to-present t)
+  (cond ((and (memq last-command mcfly-commands)
+              (equal (this-command-keys-vector) (kbd "M-p")))
+         ;; repeat one time to get straight to the first history item
+         (setq unread-command-events
+               (append unread-command-events
+                       (listify-key-sequence (kbd "M-p")))))
+        ((memq this-command mcfly-back-commands)
+         (delete-region (point)
+                        (point-max)))))
+
+(defun mcfly-time-travel ()
+  (when (memq this-command mcfly-commands)
+    (let* ((kbd (kbd "M-n"))
+           (cmd (key-binding kbd))
+           (future (and cmd
+                        (with-temp-buffer
+                          (when (ignore-errors
+                                  (call-interactively cmd) t)
+                            (buffer-string))))))
+      (when future
+        (save-excursion
+          (insert (propertize future 'face 'shadow)))
+        (add-hook 'pre-command-hook 'mcfly-back-to-present nil t)))))
+
+;; setup code
+(add-hook 'minibuffer-setup-hook #'mcfly-time-travel)
+
+(with-eval-after-load 'ivy
+  (push (cons 'swiper 'mcfly-swiper)
+        ivy-hooks-alist)
+  (defun mcfly-swiper ()
+    (let ((sym (with-ivy-window
+                 (thing-at-point 'symbol))))
+      (when sym
+        (add-hook 'pre-command-hook 'mcfly-back-to-present nil t)
+        (save-excursion
+          (insert (propertize sym 'face 'shadow)))))))
 ;;; misc non-interactive functions
+;;; doom-modeline
+(when (featurep! :ui modeline)
+  (setq doom-modeline-github t
+        doom-modeline-icon nil)
+  (add-transient-hook! 'after-change-major-mode-hook
+    (display-time-mode)))
 ;;; modeline
-(unless (fboundp 'file-local-name)
-  (defun file-local-name (file)
-    "return the local name component of file."
-    (or (file-remote-p file 'localname) file)))
+;; (unless (fboundp 'file-local-name)
+;;   (defun file-local-name (file)
+;;     "return the local name component of file."
+;;     (or (file-remote-p file 'localname) file)))
 
+;; ;; (setq mode-line-position
+;; ;;       '((line-number-mode ("(%l" (column-number-mode ",%c")))
+;; ;;         (-4 ":%p" ) (")")))
 ;; (setq mode-line-position
-;;       '((line-number-mode ("(%l" (column-number-mode ",%c")))
-;;         (-4 ":%p" ) (")")))
-(setq mode-line-position
-      '((column-number-mode ("(%c"))
-        (-4 ":%p") (")")))
+;;       '((column-number-mode ("(%c"))
+;;         (-4 ":%p") (")")))
 
-(defun modeline-project-root ()
-  "get the path to the root of your project.
-return `default-directory' if no project was found."
-  (file-local-name
-   (or
-    (when (featurep 'projectile)
-      (ignore-errors (projectile-project-root)))
-    default-directory)))
+;; (defun modeline-project-root ()
+;;   "get the path to the root of your project.
+;; return `default-directory' if no project was found."
+;;   (file-local-name
+;;    (or
+;;     (when (featurep 'projectile)
+;;       (ignore-errors (projectile-project-root)))
+;;     default-directory)))
 
-(defun truncate-relative-path (path)
-  "return the truncate of relative path."
-  (save-match-data
-    (let ((pos 0) matches)
-      (setq path (concat "/" path))
-      (while (string-match "\\(\/\\.?.\\)" path pos)
-        (setq matches (concat matches (match-string 0 path))
-              pos (match-end 0)))
-      (concat matches "/"))))
+;; (defun truncate-relative-path (path)
+;;   "return the truncate of relative path."
+;;   (save-match-data
+;;     (let ((pos 0) matches)
+;;       (setq path (concat "/" path))
+;;       (while (string-match "\\(\/\\.?.\\)" path pos)
+;;         (setq matches (concat matches (match-string 0 path))
+;;               pos (match-end 0)))
+;;       (concat matches "/"))))
 
-(defun modeline-buffer-file-name ()
-  "propertized variable `buffer-file-name'."
-  (let* ((buffer-file-truename (file-local-name (or (buffer-file-name (buffer-base-buffer)) "")))
-         (project-root (modeline-project-root)))
-    (concat
-     ;; project
-     (propertize
-      (concat (file-name-nondirectory (directory-file-name project-root)) "/")
-      'face '(:inherit font-lock-string-face :weight bold))
-     ;; relative path
-     (propertize
-      (when-let (relative-path (file-relative-name
-                                (or (file-name-directory buffer-file-truename) "./")
-                                project-root))
-        (if (string= relative-path "./") ""
-          (substring (truncate-relative-path relative-path) 1)))
-      'face 'font-lock-comment-face)
-     ;; file name
-     (propertize (file-name-nondirectory buffer-file-truename)
-                 'face 'mode-line-buffer-id))))
+;; (defun modeline-buffer-file-name ()
+;;   "propertized variable `buffer-file-name'."
+;;   (let* ((buffer-file-truename (file-local-name (or (buffer-file-name (buffer-base-buffer)) "")))
+;;          (project-root (modeline-project-root)))
+;;     (concat
+;;      ;; project
+;;      (propertize
+;;       (concat (file-name-nondirectory (directory-file-name project-root)) "/")
+;;       'face '(:inherit font-lock-string-face :weight bold))
+;;      ;; relative path
+;;      (propertize
+;;       (when-let (relative-path (file-relative-name
+;;                                 (or (file-name-directory buffer-file-truename) "./")
+;;                                 project-root))
+;;         (if (string= relative-path "./") ""
+;;           (substring (truncate-relative-path relative-path) 1)))
+;;       'face 'font-lock-comment-face)
+;;      ;; file name
+;;      (propertize (file-name-nondirectory buffer-file-truename)
+;;                  'face 'mode-line-buffer-id))))
 
-(defvar-local modeline-buffer-info nil)
-(defvar mode-line-buffer-info
-  '(:propertize
-    (:eval (or modeline-buffer-info
-               (setq modeline-buffer-info
-                     (if buffer-file-name
-                         (modeline-buffer-file-name)
-                       (propertize "%b" 'face '(:weight bold))))))))
-(put 'mode-line-buffer-info 'risky-local-variable t)
+;; (defvar-local modeline-buffer-info nil)
+;; (defvar mode-line-buffer-info
+;;   '(:propertize
+;;     (:eval (or modeline-buffer-info
+;;                (setq modeline-buffer-info
+;;                      (if buffer-file-name
+;;                          (modeline-buffer-file-name)
+;;                        (propertize "%b" 'face '(:weight bold))))))))
+;; (put 'mode-line-buffer-info 'risky-local-variable t)
 
-(defsubst modeline-column (pos)
-  "get the column of the position `pos'."
-  (save-excursion (goto-char pos)
-                  (current-column)))
+;; (defsubst modeline-column (pos)
+;;   "get the column of the position `pos'."
+;;   (save-excursion (goto-char pos)
+;;                   (current-column)))
 
-(defun selection-info ()
-  "information about the current selection."
-  (when mark-active
-    (cl-destructuring-bind (beg . end)
-        (cons (region-beginning) (region-end))
-      (propertize
-       (let ((lines (count-lines beg (min end (point-max)))))
-         (concat (cond ((bound-and-true-p rectangle-mark-mode)
-                        (let ((cols (abs (- (modeline-column end)
-                                            (modeline-column beg)))))
-                          (format " (%dx%d)" lines cols)))
-                       ((> lines 1)
-                        (format " (%d,%d)" lines (- end beg)))
-                       ((format " (%d,%d)" 0 (- end beg))))))
-       'face 'font-lock-warning-face))))
+;; (defun selection-info ()
+;;   "information about the current selection."
+;;   (when mark-active
+;;     (cl-destructuring-bind (beg . end)
+;;         (cons (region-beginning) (region-end))
+;;       (propertize
+;;        (let ((lines (count-lines beg (min end (point-max)))))
+;;          (concat (cond ((bound-and-true-p rectangle-mark-mode)
+;;                         (let ((cols (abs (- (modeline-column end)
+;;                                             (modeline-column beg)))))
+;;                           (format " (%dx%d)" lines cols)))
+;;                        ((> lines 1)
+;;                         (format " (%d,%d)" lines (- end beg)))
+;;                        ((format " (%d,%d)" 0 (- end beg))))))
+;;        'face 'font-lock-warning-face))))
 
-(column-number-mode 1)
-(setq display-time-24hr-format t
-      display-time-day-and-date t
-      display-time-default-load-average nil
-      display-time-load-average-threshold 0
-      display-time-mail-string ""
-      display-time-mail-icon nil)
-(display-time)
+;; (column-number-mode 1)
+;; (setq display-time-24hr-format t
+;;       display-time-day-and-date t
+;;       display-time-default-load-average nil
+;;       display-time-load-average-threshold 0
+;;       display-time-mail-string ""
+;;       display-time-mail-icon nil)
+;; ;; (display-time)
 
-(setq-default mode-line-format
-              '("%e"
-                mode-line-front-space
-                mode-line-mule-info
-                mode-line-client
-                mode-line-modified
-                mode-line-remote
-                ;; mode-line-frame-identification -- this is for text-mode emacs only
-                " "
-                mode-line-buffer-info
-                ;; mode-line-buffer-identification
-                " "
-                mode-line-position
-                ;; (:eval (selection-info))
-                (vc-mode vc-mode)
-                " "
-                ;; mode-line-modes
-                mode-line-misc-info
-                mode-line-end-spaces))
+;; (setq-default mode-line-format
+;;               '("%e"
+;;                 mode-line-front-space
+;;                 mode-line-mule-info
+;;                 mode-line-client
+;;                 mode-line-modified
+;;                 mode-line-remote
+;;                 ;; mode-line-frame-identification -- this is for text-mode emacs only
+;;                 " "
+;;                 mode-line-buffer-info
+;;                 ;; mode-line-buffer-identification
+;;                 " "
+;;                 mode-line-position
+;;                 ;; (:eval (selection-info))
+;;                 (vc-mode vc-mode)
+;;                 " "
+;;                 ;; mode-line-modes
+;;                 mode-line-misc-info
+;;                 mode-line-end-spaces))
 ;;; exwm
 ;;;; keybindings
 (when (display-graphic-p)
@@ -217,14 +356,19 @@ return `default-directory' if no project was found."
       (exwm-input-set-key (kbd "<XF86AudioLowerVolume>") #'emms-volume-mode-minus))))
 ;;;; core
 (when (display-graphic-p)
-  ;; (require 'exwm-workspace)
-  ;; (require 'exwm-randr)
-  ;; (require 'exwm-xim)
-  ;; (exwm-xim-enable)
+  (require 'exwm-workspace)
+  (require 'exwm-randr)
+  (require 'exwm-xim)
+  (exwm-xim-enable)
   (require 'exwm)
   (require 'exwm-systemtray)
+  (add-transient-hook! exwm-init-hook
+    (start-process "steam" nil "steam")
+    ;; (start-process "wowhead client" "wowhead" "wine" (expand-file-name "~/win64/drive_c/Program Files (x86)/Wowhead_Client.exe"))
+    )
+
   (exwm-systemtray-enable)
-  ;; (exwm-randr-enable)
+  (exwm-randr-enable)
   (exwm-enable)
 
   (defun exwm-rename-buffer ()
@@ -378,23 +522,26 @@ return `default-directory' if no project was found."
   (after! org
     (map! :map howm-mode-map
           :ie "<C-return>" #'+org/insert-item-below))
-  (setq howm-view-use-grep t
-        howm-view-grep-command "rg"
-        howm-view-grep-option "-nh --no-heading --color never"
-        howm-view-grep-extended-option nil
-        howm-view-grep-fixed-option "-f"
-        howm-view-grep-expr-option nil
-        howm-view-grep-file-stdin-option nil
-        howm-menu-file "0000-00-00-000000.txt"
-        ;; howm-file-name-format "%y/%m/%y-%m-%d-%h%m%s.howm"
-        howm-view-title-header "*"
-        howm-menu-schedule-days 14
-        howm-menu-expiry-hours 1
-        howm-keyword-case-fold-search t
-        howm-template "\* %title%cursor\n%date %file\n\n"
-        howm-view-title-regexp "^\*\\( +\\(.*\\)\\|\\)$"
-        howm-view-title-skip-regexp "\\(^\\(\*\\)? *$\\)\\|\\(^\\[[-: 0-9]+\\]\\)"
-        howm-view-title-regexp-grep "^\* +")
+  (setq
+   ;; howm-view-use-grep t
+   ;; howm-view-grep-command "rg"
+   ;; howm-view-grep-option "-nh --no-heading --color never"
+   ;; howm-view-grep-extended-option nil
+   ;; howm-view-grep-fixed-option "-f"
+   ;; howm-view-grep-expr-option nil
+   ;; howm-view-grep-file-stdin-option nil
+   howm-menu-file "0000-00-00-000000.txt"
+   ;; howm-file-name-format "%y/%m/%y-%m-%d-%h%m%s.howm"
+
+   howm-view-title-header "*"
+   howm-menu-schedule-days 14
+   howm-menu-expiry-hours 1
+   howm-keyword-case-fold-search t
+   howm-template "\* %title%cursor\n%date %file\n\n"
+   howm-view-title-regexp "^\*\\( +\\(.*\\)\\|\\)$"
+   howm-view-title-skip-regexp "\\(^\\(\*\\)? *$\\)\\|\\(^\\[[-: 0-9]+\\]\\)"
+   howm-view-title-regexp-grep "^\* +"
+   )
   (defun stringify-first-argument-if-nil (oldfun &rest args)
     (when (and (listp args)
                (null (car args)))
@@ -419,16 +566,62 @@ return `default-directory' if no project was found."
                 (evil-insert-state)
               (evil-normal-state)))
         (evil-emacs-state)))
-    (add-hook 'howm-view-summary-mode-hook #'evil-emacs-state)
-    (add-hook! 'howm-mode-hook
-      (setq-local org-complex-heading-regexp
-                  "^\\(\\*+\\)\\(?: +\\(abrt\\|done\\|hold\\|next\\|proj\\|todo\\|wait\\|\\[\\(?:[ ?x-]]\\)\\)\\)?\\(?: +\\(\\[#.\\]\\)\\)?\\(?: +\\(.*?\\)\\)??\\(?:[ 	]+\\(:[[:alnum:]_@#%:]+:\\)\\)?[ 	]*$"))))
+    (add-hook 'howm-view-summary-mode-hook #'evil-emacs-state))
+  (add-hook! 'howm-mode-hook
+    (setq-local org-complex-heading-regexp
+                "^\\(\\*+\\)\\(?: +\\(abrt\\|done\\|hold\\|next\\|proj\\|todo\\|wait\\|\\[\\(?:[ ?x-]]\\)\\)\\)?\\(?: +\\(\\[#.\\]\\)\\)?\\(?: +\\(.*?\\)\\)??\\(?:[ 	]+\\(:[[:alnum:]_@#%:]+:\\)\\)?[ 	]*$")))
 ;;; navigation
+;;;; isearch
+(setq search-whitespace-regexp ".*?")
+(setq isearch-lax-whitespace t)
+
+(define-key isearch-mode-map [remap isearch-delete-char] 'isearch-delete+)
+
+(defun isearch-delete+ ()
+  "Delete the failed portion or last char if succesful search.
+
+See also:
+
+  https://emacs.stackexchange.com/a/10360/9198"
+  (interactive)
+  (if (= 0 (length isearch-string))
+      (ding)
+    (setq isearch-string
+          (substring
+           isearch-string 0 (or (isearch-fail-pos) (1- (length isearch-string))))
+          isearch-message
+          (mapconcat 'isearch-text-char-description isearch-string ""))
+    (funcall (or isearch-message-function #'isearch-message) nil t)
+    (if isearch-other-end (goto-char isearch-other-end))
+    (isearch-search)
+    (isearch-push-state)
+    (isearch-update)))
+
+
+(define-key isearch-mode-map (kbd "C-w")
+  'isearch-kill-region+)
+
+(defun isearch-kill-region+ ()
+  "Kill text until match or pull text into search string.
+
+If search string is empty forward to `isearch-yank-word-or-char'.
+Otherwise exit search and kill text from where search was started
+until the current match."
+  (interactive)
+  (if (or (string= "" isearch-string)
+          (eq last-command this-command))
+      (isearch-yank-word-or-char)
+    (isearch-exit)
+    (goto-char isearch-other-end)
+    (kill-region
+     isearch-opoint (point))))
 ;;;; avy
-(after! avy
+(use-package! avy
+  :bind (("C-M-s-s" . avy-goto-char-timer))
+  :config
   (avy-setup-default)
   (setq avy-all-windows t
-        avy-timeout-seconds 0.2)
+        avy-timeout-seconds 0.3)
   ;; (setq avy-style 'pre)
   (setq avy-keys
         '(?q ?a ?r ?s ?t ?i
@@ -471,12 +664,12 @@ return `default-directory' if no project was found."
   :commands (anzu-query-replace
              anzu-query-replace-regexp)
   :init
-  (defun anzu-enable-advice (&rest _)
-    (global-anzu-mode 1))
-  (advice-add #'isearch-forward :before #'anzu-enable-advice)
-  (advice-add #'isearch-backward :before #'anzu-enable-advice)
-  (advice-add #'isearch-forward-regexp :before #'anzu-enable-advice)
-  (advice-add #'isearch-backward-regexp :before #'anzu-enable-advice)
+  ;; (defun anzu-enable-advice (&rest _)
+  ;; (global-anzu-mode 1))
+  ;; (advice-add #'isearch-forward :before #'anzu-enable-advice)
+  ;; (advice-add #'isearch-backward :before #'anzu-enable-advice)
+  ;; (advice-add #'isearch-forward-regexp :before #'anzu-enable-advice)
+  ;; (advice-add #'isearch-backward-regexp :before #'anzu-enable-advice)
   :bind (([remap query-replace] . anzu-query-replace)
          ([remap query-replace-regexp] . anzu-query-replace-regexp)
          (:map isearch-mode-map
@@ -484,10 +677,85 @@ return `default-directory' if no project was found."
            ([remap isearch-query-replace-regexp] . anzu-isearch-query-replace-regexp))))
 ;;; ui
 ;;;; theme
-;;;;;; set default theme
-(setq doom-themes-enable-bold nil
-      ;; doom-theme 'doom-iosvkem
-      )
+(setq doom-themes-enable-bold nil)
+;;;; visual scrolling
+(autoload 'View-scroll-half-page-forward "view")
+(autoload 'View-scroll-half-page-backward "view")
+(global-set-key (kbd "C-v") 'View-scroll-half-page-forward)
+(global-set-key (kbd "M-v") 'View-scroll-half-page-backward)
+
+(global-set-key (kbd "C-M-v")
+                'my-View-scroll-half-page-forward-other-window)
+(global-set-key (kbd "C-M-S-v")
+                'my-View-scroll-half-page-backward-other-window)
+
+(defun my-View-scroll-half-page-forward-other-window ()
+  (interactive)
+  (with-selected-window (next-window)
+    (call-interactively 'View-scroll-half-page-forward)))
+
+(defun my-View-scroll-half-page-backward-other-window ()
+  (interactive)
+  (with-selected-window (next-window)
+    (call-interactively 'View-scroll-half-page-backward)))
+
+(setq scroll-preserve-screen-position 'always)
+
+(advice-add #'View-scroll-half-page-forward :around
+            #'my-indicate-scroll-forward)
+
+(advice-add #'View-scroll-half-page-backward :around
+            #'my-indicate-scroll-backward)
+
+(defun my-indicate-scroll-get-line (pos)
+  (save-excursion
+    (goto-char pos)
+    (string-to-number (format-mode-line "%l"))))
+
+(defun my-indicate-scroll (linep f args)
+  (let ((linen (my-indicate-scroll-get-line linep))
+        (pulse-delay 0.1))
+    (set-transient-map
+     `(keymap (?v . ,real-this-command)))
+    (save-excursion
+      (goto-line linen)
+      (pulse-momentary-highlight-one-line (point) 'highlight))
+    (sit-for 0.1)
+    (apply f args)))
+
+(defun my-indicate-scroll-forward (f &rest args)
+  (my-indicate-scroll (1- (window-end)) f args))
+
+(defun my-indicate-scroll-backward (f &rest args)
+  (my-indicate-scroll (window-start) f args))
+;;;; frog-menu
+(use-package! frog-menu
+  :commands frog-menu-read
+  :init
+  (after! flyspell-correct
+    (defun frog-menu-flyspell-correct (candidates word)
+      "Run `frog-menu-read' for the given CANDIDATES.
+
+List of CANDIDATES is given by flyspell for the WORD.
+
+Return selected word to use as a replacement or a tuple
+of (command . word) to be used by `flyspell-do-correct'."
+      (let* ((corrects (if flyspell-sort-corrections
+                           (sort candidates 'string<)
+                         candidates))
+             (actions `(("C-s" "Save word"         (save    . ,word))
+                        ("C-a" "Accept (session)"  (session . ,word))
+                        ("C-b" "Accept (buffer)"   (buffer  . ,word))
+                        ("C-c" "Skip"              (skip    . ,word))))
+             (prompt   (format "Dictionary: [%s]"  (or ispell-local-dictionary
+                                                       ispell-dictionary
+                                                       "default")))
+             (res      (frog-menu-read prompt corrects actions)))
+        (unless res
+          (error "Quit"))
+        res))
+
+    (setq flyspell-correct-interface #'frog-menu-flyspell-correct)))
 ;;;; Workspaces
 (when (featurep! :ui workspaces)
   (map! (:map minibuffer-local-map
@@ -578,24 +846,132 @@ return `default-directory' if no project was found."
            do (advice-add fn :around #'annot-run-at-end-of-line-advice))
   (advice-add #'annot-remove :around #'annot-remove-from-current-line-advice)
   (setq annot-enable-fuf-support t))
+;;; objed
+(when (featurep! :editor objed)
+  (remove-hook 'prog-mode-hook #'hl-line-mode)
+  (remove-hook 'text-mode-hook #'hl-line-mode)
+
+  (defun my-objed-electric-event (beg end &optional event)
+    (interactive "r")
+    (require 'elec-pair)
+    (let ((electric-pair-mode t)
+          (last-command-event (or event last-command-event))
+          (epos nil)
+          ;; make sure to go to beginning
+          (rbeg (if (> beg end) end beg))
+          (rend (if (> beg end) beg end))
+          (pair (pcase event
+                  (?' '("'" . "'"))
+                  (?\) '("(" . ")"))
+                  (?\( '("( " . " )"))
+                  (?\] '("[" . "]"))
+                  (?\[ '("[ " . " ]"))
+                  (?\} '("{" . "}"))
+                  (?\{ '("{ " . " }"))
+                  (?\" '("\"" . "\""))
+                  (event (cons (char-to-string event)
+                               (char-to-string event))))))
+      (save-mark-and-excursion
+        ;; skip ws optionally?
+        (push-mark (objed--skip-backward rend 'ws) t t)
+        (goto-char rbeg)
+        (objed --skip-ws)
+        (insert (car pair))
+        (goto-char (1+ rend))
+        (objed--skip-ws 'backward)
+        (insert (cdr pair))
+        ;; todo: additional expansion/insertion
+        (setq epos (point))
+        (goto-char epos))))
+
+  (advice-add #'objed-electric-event :override #'my-objed-electric-event)
+
+  (use-package! beacon
+    :init
+    (add-hook! objed-mode
+      (setq beacon-blink-when-window-scrolls nil)
+      (setq beacon-blink-when-focused t)
+      (beacon-mode 1)
+      (add-hook 'beacon-before-blink-hook
+                (lambda ()
+                  (run-at-time 0.1 nil 'objed-activate)))))
+  (after! objed
+    ;; (add-to-list 'objed-cmd-alist '(View-scroll-half-page-forward . char))
+    ;; (add-to-list 'objed-cmd-alist '(View-scroll-half-page-backward . char))
+    ;; (dolist (command '(sp-beginning-of-sexp
+    ;;                    sp-end-of-sexp
+    ;;                    sp-backward-sexp
+    ;;                    sp-backward-up-sexp
+    ;;                    sp-up-sexp
+    ;;                    sp-down-sexp
+    ;;                     nsp-backward-down-sexp
+    ;;                    ;; sp-split-sexp
+    ;;                    ;; sp-kill-sexp
+    ;;                    ;; sp-transpose-sexp
+    ;;                    ;; sp-splice-sexp
+    ;;                    ;; sp-forward-slurp-sexp
+    ;;                    ;; sp-forward-barf-sexp
+    ;;                    ;; sp-backward-slurp-sexp
+    ;;                    ;; sp-backward-barf-sexp
+    ;;                    ))
+    ;;   (add-to-list 'objed-cmd-alist (cons command 'bracket)))
+    ;; (objed--install-advices objed-cmd-alist t)
+
+    (map! (:map objed-mode-map
+            "M-o" #'objed-activate-object
+            )
+          ;; (:map objed-map
+          ;;   "C-1" #'+workspace/switch-to-0
+          ;;   "C-2" #'+workspace/switch-to-1
+          ;;   "C-3" #'+workspace/switch-to-2
+          ;;   "C-4" #'+workspace/switch-to-3
+          ;;   "C-5" #'+workspace/switch-to-4
+          ;;   "C-6" #'+workspace/switch-to-5
+          ;;   "C-7" #'+workspace/switch-to-6
+          ;;   "C-8" #'+workspace/switch-to-7
+          ;;   "C-9" #'+workspace/switch-to-8
+          ;;   "C-0" #'+workspace/switch-to-9)
+          (:map objed-op-map
+            "p" #'recentf-open-files
+            "l" #'recenter-top-bottom))))
+;;; emacs
+(unless (featurep! :editor evil)
+  (use-package! visible-mark
+    :init
+    ;; (defface visible-mark-active ;; put this before (require 'visible-mark)
+    ;;   '((((type tty) (class mono)))
+    ;;     (t (:background "magenta"))) "")
+
+    (add-hook! 'find-file-hook
+      (global-visible-mark-mode +1))
+    :config
+    ;; (setq visible-mark-max 2
+    ;;       visible-mark-faces `(visible-mark-face1 visible-mark-face2))
+    )
+  ;; (use-package! auto-mark
+  ;;   :init
+  ;;   (add-hook! 'find-file-hook
+  ;;     (global-auto-mark-mode +1)))
+  )
 ;;; evil
 ;;;; keybindings
-(map! :n "<backspace>" #'evil-substitute
-      :i "C-\\" #'evil-paste-from-register
-      :i "C-r" #'isearch-backward
-      (:after org
-        (:map evil-org-mode-map
-          :i "C-h" help-map))
-      (:map evil-window-map
-        "o" #'other-window
-        "c" #'delete-window
-        "e" #'evil-window-up)
-      (:leader
-        (:prefix "/"
-          (:after counsel
-            :nv "3" #'counsel-outline))
-        (:prefix "t"
-          :nv "." #'find-file-at-point)))
+(when (featurep! :editor evil)
+  (map! :n "<backspace>" #'evil-substitute
+        :i "C-\\" #'evil-paste-from-register
+        :i "C-r" #'isearch-backward
+        (:after org
+          (:map evil-org-mode-map
+            :i "C-h" help-map))
+        (:map evil-window-map
+          "o" #'other-window
+          "c" #'delete-window
+          "e" #'evil-window-up)
+        (:leader
+          (:prefix "/"
+            (:after counsel
+              :nv "3" #'counsel-outline))
+          (:prefix "t"
+            :nv "." #'find-file-at-point))))
 ;;;; evil-mc
 (when (and (featurep! :editor multiple-cursors)
            (featurep! :editor evil))
@@ -664,10 +1040,10 @@ return `default-directory' if no project was found."
   (setq vimish-fold-dir (concat doom-cache-dir "vimish-fold/")
         vimish-fold-indication-mode 'right-fringe)
   (evil-define-key* 'motion 'global
-    "xt" #'evil-vimish-fold/create
-    "xt" #'evil-vimish-fold/create-line
-    "xs" #'vimish-fold-delete
-    "xc" #'vimish-fold-delete-all)
+                    "xt" #'evil-vimish-fold/create
+                    "xt" #'evil-vimish-fold/create-line
+                    "xs" #'vimish-fold-delete
+                    "xc" #'vimish-fold-delete-all)
   (vimish-fold-global-mode 1))
 ;;;; evil-snipe
 (when (featurep! :editor evil)
@@ -679,21 +1055,26 @@ return `default-directory' if no project was found."
 (when (featurep! :editor evil)
   (setq evil-ex-hl-update-delay 0.02))
 ;;;; lispyville
-(after! lispyville
-  (lispyville-set-key-theme
-   '(operators
-     c-w
-     commentary
-     prettify))
-  (setq lispyville-motions-put-into-special nil)
-  (map! :map lispyville-mode-map
-        :nmvie "<S-right>" #'lispyville-forward-atom-end
-        :nmvie "<S-left>" #'lispyville-backward-atom-begin))
+(when (and (featurep! :editor lispy)
+           (featurep! :editor evil))
+  (after! lispyville
+    (lispyville-set-key-theme
+     '(operators
+       c-w
+       commentary
+       prettify))
+    (setq lispyville-motions-put-into-special nil)
+    (map! :map lispyville-mode-map
+          :nmvie "<S-right>" #'lispyville-forward-atom-end
+          :nmvie "<S-left>" #'lispyville-backward-atom-begin)))
 ;;; lispy
 (when (featurep! :editor lispy)
+  (customize-set-variable 'lispy-key-theme '(special lispy))
   (after! lispy
     (setq lispy-eval-display-style 'overlay
-          lispy-no-permanent-semantic t)))
+          lispy-no-permanent-semantic t)
+    (map! :map lispy-mode-map-special
+          "m" #'special-lispy-left)))
 ;;; completion
 ;;;; company
 ;;;;;; company settings
@@ -767,7 +1148,12 @@ return `default-directory' if no project was found."
         :desc "edit abbrevs" :nmv "a" #'edit-abbrevs))
 ;;;; ivy
 (when (featurep! :completion ivy)
+  (setq +ivy-buffer-preview t)
   (after! ivy
+    (when (and (featurep 'exwm)
+               (featurep! :completion ivy +childframe))
+      (after! ivy-posframe
+        (setq ivy-posframe-parameters '((parent-frame nil)))))
     ;; (map! :g [remap execute-extended-command] #'counsel-M-x)
     (add-to-list 'ivy-ignore-buffers "^\\*undo propose:")
     ;; keybindings
@@ -782,11 +1168,11 @@ return `default-directory' if no project was found."
   (use-package! swiper
     :defer-incrementally t
     :commands (swiper-isearch swiper-isearch-backward swiper)
-    :bind (("C-s-s" . swiper-isearch)
-           ("C-s-r" . swiper-isearch-backward)
+    :bind (("C-S-s" . swiper-isearch)
+           ("C-S-r" . swiper-isearch-backward)
            (:map isearch-mode-map
-             ("C-s-s" . swiper-from-isearch)
-             ("C-s-r" . swiper-from-isearch)))))
+             ("C-S-s" . swiper-from-isearch)
+             ("C-S-r" . swiper-from-isearch)))))
 ;;; email
 ;;;; smtp-mail
 (after! message
@@ -907,13 +1293,13 @@ mail-count is the count of mails for which the string is to displayed"
   (setq coq-prog-env
         '("home=~/"
           "path=$path:~/.nix-profile/bin:/run/current-system/sw/bin/"))
-  (setq coq-prog-name "~/.nix-profile/bin/coqtop")
+  (setq coq-prog-name (expand-file-name "~/hott/hoqtop"))
   (load (concat doom-private-dir "+coq") nil t)
   (defun my-coq-mode-hook ()
-    (setq flycheck-coq-executable "~/.nix-profile/bin/coqtop"
+    (setq flycheck-coq-executable (expand-file-name "~/hott/hoqtop")
           proof-prog-name-ask nil)
     (after! proof-config
-      (setq proof-prog-name "~/.nix-profile/bin/coqtop")))
+      (setq proof-prog-name (expand-file-name "~/hott/hoqtop"))))
   (add-hook 'coq-mode-hook #'my-coq-mode-hook))
 ;; (add-hook! 'coq-mode-hook (abbrev-mode -1))
 ;;; haskell
@@ -924,11 +1310,11 @@ mail-count is the count of mails for which the string is to displayed"
 (after! lispyville
   (map! :map lispyville-mode-map
         :n "M-t" nil))
-(use-package! auto-compile
-  :after-call before-save-hook
-  :config
-  (auto-compile-on-load-mode 1)
-  (auto-compile-on-save-mode 1))
+;; (use-package! auto-compile
+;;   :after-call before-save-hook
+;;   :config
+;;   (auto-compile-on-load-mode 1)
+;;   (auto-compile-on-save-mode 1))
 ;;; common lisp
 (after! sly
   (setq sly-lisp-implementations
@@ -936,16 +1322,20 @@ mail-count is the count of mails for which the string is to displayed"
                 :coding-system utf-8-unix))))
 ;;; undo
 (use-package! undo-propose
-  :bind (("C-x u" . undo-propose)))
+  :bind (("C-x u" . undo-propose)
+         ("C-M-s-u" . undo-propose)))
 ;;; files
 ;;;; exclude more boring files from recent files.
 (after! recentf
   (add-to-list 'recentf-exclude "^/nix/store/")
   (add-to-list 'recentf-exclude ".+\\.mp3$"))
-;;;; automatically revert dired buffers.
+;;;; dired
 (when (featurep! :emacs dired)
   (after! dired
-    (setq dired-auto-revert-buffer t))
+    (setq dired-auto-revert-buffer t)
+    (unless (featurep! :emacs dired +ranger)
+      (map! :map dired-mode-map
+            "e" #'dired-previous-line)))
 ;;;; sunrise commander, a two-pane version of dired.
   (use-package! sunrise-commander
     :defer-incrementally t
@@ -1079,6 +1469,64 @@ mail-count is the count of mails for which the string is to displayed"
 ;;;; outshine
 (use-package! outshine
   :hook ((outline-minor-mode . outshine-mode)))
+;;;; show matching lines when parens go off-screen
+;; we will call `blink-matching-open` ourselves...
+(remove-hook 'post-self-insert-hook
+             #'blink-paren-post-self-insert-function)
+;; this still needs to be set for `blink-matching-open` to work
+(setq blink-matching-paren 'show)
+
+(let ((ov nil)) ; keep track of the overlay
+  (advice-add
+   #'show-paren-function
+   :after
+   (defun show-paren--off-screen+ (&rest _args)
+     "Display matching line for off-screen paren."
+     (when (overlayp ov)
+       (delete-overlay ov))
+     ;; check if it's appropriate to show match info,
+     ;; see `blink-paren-post-self-insert-function'
+     (when (and (overlay-buffer show-paren--overlay)
+                (not (or cursor-in-echo-area
+                         executing-kbd-macro
+                         noninteractive
+                         (minibufferp)
+                         this-command))
+                (and (not (bobp))
+                     (memq (char-syntax (char-before)) '(?\) ?\$)))
+                (= 1 (logand 1 (- (point)
+                                  (save-excursion
+                                    (forward-char -1)
+                                    (skip-syntax-backward "/\\")
+                                    (point))))))
+       ;; rebind `minibuffer-message' called by
+       ;; `blink-matching-open' to handle the overlay display
+       (cl-letf (((symbol-function #'minibuffer-message)
+                  (lambda (msg &rest args)
+                    (let ((msg (apply #'format-message msg args)))
+                      (setq ov (display-line-overlay+
+                                (window-start) msg ))))))
+         (blink-matching-open))))))
+
+(defun display-line-overlay+ (pos str &optional face)
+  "Display line at POS as STR with FACE.
+
+FACE defaults to inheriting from default and highlight."
+  (let ((ol (save-excursion
+              (goto-char pos)
+              (make-overlay (line-beginning-position)
+                            (line-end-position)))))
+    (overlay-put ol 'display str)
+    (overlay-put ol 'face
+                 (or face '(:inherit default :inherit highlight)))
+    ol))
+
+(setq show-paren-style 'paren
+      show-paren-delay 0.03
+      show-paren-highlight-openparen t
+      show-paren-when-point-inside-paren nil
+      show-paren-when-point-in-periphery t)
+(show-paren-mode 1)
 ;;;; nix-mode
 (after! nix-mode
   (setf (alist-get 'nix-mode +company-backend-alist)
@@ -1433,18 +1881,18 @@ mail-count is the count of mails for which the string is to displayed"
   :config
   (when (featurep! :editor evil)
     (evil-set-initial-state 'fireplace-mode 'emacs)))
-(use-package! landmark
-  :defer-incrementally t
-  :commands landmark
-  :bind (:map doom-leader-map
-          ("ael" . landmark))
-  :init
-  (after! which-key
-    (add-to-list 'which-key-replacement-alist
-                 '((nil . "landmark") . (nil . "Landmark"))))
-  :config
-  (when (featurep! :editor evil)
-    (evil-set-initial-state 'landmark-mode 'emacs)))
+;; (use-package! landmark
+;;   :defer-incrementally t
+;;   :commands landmark
+;;   :bind (:map doom-leader-map
+;;           ("ael" . landmark))
+;;   :init
+;;   (after! which-key
+;;     (add-to-list 'which-key-replacement-alist
+;;                  '((nil . "landmark") . (nil . "Landmark"))))
+;;   :config
+;;   (when (featurep! :editor evil)
+;;     (evil-set-initial-state 'landmark-mode 'emacs)))
 (use-package! zone
   :defer-incrementally t
   :commands zone
@@ -1595,28 +2043,28 @@ Return a new buffer or BUF with the code in it."
   (add-hook! 'md4rd-mode-hook #'md4rd-indent-all-the-lines)
   (add-to-list 'md4rd-subs-active 'nixos :append))
 ;;;; weather
-(after! solar
-  (setq calendar-latitude 40.1106
-        calendar-longitude -88.2073
-        calendar-location-name "Urbana, IL"))
+;; (after! solar
+;;   (setq calendar-latitude 40.1106
+;;         calendar-longitude -88.2073
+;;         calendar-location-name "Urbana, IL"))
 (after! calendar
   (setq calendar-week-start-day 1))
-(use-package! forecast
-  :defer-incrementally t
-  :commands forecast
-  :bind (:map doom-leader-map
-          ("aw" . forecast))
-  :init
-  (after! which-key
-    (add-to-list 'which-key-replacement-alist '((nil . "forecast") . (nil . "Weather"))))
-  :config
-  (setq forecast-api-key "3952024acf85777d62f39869da12f853"
-        forecast-units 'us
-        forecast-language 'en)
-  (map! :map forecast-mode-map
-        :n "q" #'bury-buffer
-        :n "l" #'forecast-refresh
-        :n "h" #'describe-mode))
+;; (use-package! forecast
+;;   :defer-incrementally t
+;;   :commands forecast
+;;   :bind (:map doom-leader-map
+;;           ("aw" . forecast))
+;;   :init
+;;   (after! which-key
+;;     (add-to-list 'which-key-replacement-alist '((nil . "forecast") . (nil . "Weather"))))
+;;   :config
+;;   (setq forecast-api-key "3952024acf85777d62f39869da12f853"
+;;         forecast-units 'us
+;;         forecast-language 'en)
+;;   (map! :map forecast-mode-map
+;;         :n "q" #'bury-buffer
+;;         :n "l" #'forecast-refresh
+;;         :n "h" #'describe-mode))
 ;;;; stumpwm
 (use-package! stumpwm-mode
   :defer-incrementally t
@@ -1730,7 +2178,7 @@ Return a new buffer or BUF with the code in it."
 
   ;; (advice-add #'pdf-misc-size-indication :around #'ignore)
   (setq pdf-misc-print-programm "/run/current-system/sw/bin/lpr"
-        pdf-misc-print-programm-args '("-p" "brother_hl-l2320d_series"
+        pdf-misc-print-programm-args '("-P" "Brother_HL-L2320D_series"
                                        "-o" "media=letter"))
   (delq 'pdf-misc-size-indication-minor-mode pdf-tools-enabled-modes)
   (delq 'pdf-misc-context-menu-minor-mode pdf-tools-enabled-modes)

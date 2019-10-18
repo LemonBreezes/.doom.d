@@ -29,7 +29,7 @@
        (ivy
         ;; +fuzzy
         +prescient
-        ;; +childframe
+        +childframe
         +icons)
 
        :ui
@@ -40,9 +40,10 @@
        ;; ophints
        fill-column
        hl-todo
+       ;; hydra
        ;; indent-guides
-       ;; modeline
-       ;; nav-flash
+       modeline
+       nav-flash
        ;; neotree
        ;; treemacs
        (popup
@@ -63,17 +64,20 @@
 
        :editor
        snippets
-       (evil
-        +everywhere
-        +commands)
+       ;; (evil
+       ;;  +everywhere
+       ;;  +commands)
        multiple-cursors
        file-templates
+       ;; god
        fold
        (format +onsave)
        lispy
        ;; parinfer
-       ;; objed
-       rotate-text
+       (objed
+        +manual)
+       ;; rotate-text
+       ;; word-wrap
 
        :emacs
        (dired

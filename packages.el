@@ -22,14 +22,30 @@
  ;; visual-fill-column
  ;; window-divider-mode
  ;; persp-mode
+ evil-collection
  )
+
 ;; (package! smartparens :disable t)
 ;; (package! hl-line :disable t)
 ;; (package! evil :disable t)
-(package! undo-tree :disable t)
+;; (package! undo-tree :disable t)
+(package! lispy :ignore t)
+;; (package! lispyville :ignore t)
+;; (package! evil :ignore t)
+;; (package! evil-collection :ignore t)
+;; (package! evil-surround :ignore t)
+;; (package! evil-snipe :ignore t)
+(package! calfw :ignore t)
+;; (package! evil-magit :ignore t)
+;; (package! evil-org :ignore t)
+;; (package! evil-easymotion :ignore t)
 ;; (package! persp-mode :disable t)
 ;; (package! window-d)
 (package! autothemer)
+(package! avy)
+(package! beacon)
+(package! visible-mark)
+(package! auto-mark)
 (package! fountain-mode)
 (package! lorem-ipsum)
 (package! cl-format)
@@ -39,6 +55,8 @@
 (package! outshine)
 ;; (package! elisp-demos)
 (package! doom-themes)
+(package! org-gcal :recipe
+  (:host github :repo "phrxmd/org-gcal.el" :files ("*")))
 ;;(package! evil :fetcher file :path "~/.config/nixpkgs/emacs-patches/evil")
 ;;(package! evil-snipe :fetcher file :path "~/.config/nixpkgs/emacs-patches/evil-snipe")
 ;; (package! org-gcal :disable t)
@@ -78,11 +96,15 @@
 ;; * New unsorted
 (package! el-go :recipe
   (:host github :repo "eschulte/el-go" :files ("*")))
+(package! eldoc-box :recipe
+  (:host github :repo "casouri/eldoc-box" :files ("eldoc-box\.el")))
+(package! frog-menu :recipe
+  (:host github :repo "clemera/frog-menu" :files ("*")))
+;; * END
 (package! jumblr :recipe
   (:host github :repo "mkmcc/jumblr" :files ("*")))
 (package! downplay-mode :recipe
   (:host github :repo "tobias/downplay-mode" :files ("downplay-mode\.el")))
-;; * END
 (package! faith :recipe
   (:host github :repo "emacsattic/faith" :files ("*\.el")))
 (package! malyon :recipe
@@ -94,6 +116,8 @@
 (package! gnugo)
 (package! 2048-game)
 (package! minesweeper)
+
+
                                         ;(package! parinfer :recipe (:host github :repo "DogLooksGood/parinfer-mode" :files ("*.el")))
 ;; (package! smartparens)
 (package! eval-in-repl :recipe

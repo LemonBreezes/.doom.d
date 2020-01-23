@@ -1,290 +1,197 @@
 ;;; init.el -*- lexical-binding: t; no-byte-compile: t; -*-
-;; Copy me to ~/.doom.d/init.el or ~/.config/doom/init.el, then edit me!
-;; (unless (fboundp 'cider-start-map) (defun cider-start-map ()))
-(setq shell-file-name "/run/current-system/sw/bin/dash")
-(setq process-connection-type nil)
-(setq source-directory (concat doom-private-dir
-                               "/emacs-libjit-src/src/"))
-(after! find-func
-  (setq find-function-C-source-directory source-directory))
-(setenv "PATH" "$PATH:$HOME/.guix-profile/bin" t)
-(setenv "PATH" "$PATH:$CARGO_HOME/bin/" t)
-(setenv "PATH" "$PATH:$HOME/.local/bin/" t)
-(setenv "AGDA_DIR" "$HOME.agda/" t)
-;; So many errors :(
-(defvar internal--daemon-sockname nil)
-(defvar coq-keymap (make-sparse-keymap))
-(defvar coq-maths-menu-enable nil)
-(defvar coq-unicode-tokens-enable nil)
-(defvar coq-toolbar-entries nil)
-(defun warn! (&rest args)
-  (message (car args)))
-(setq load-path (nreverse load-path))
+
+;; This file controls what Doom modules are enabled and what order they load in.
+;; Remember to run 'doom sync' after modifying it!
+
+;; NOTE Press 'SPC h d h' (or 'C-h d h' for non-vim users) to access Doom's
+;;      documentation. There you'll find information about all of Doom's modules
+;;      and what flags they support.
+
+;; NOTE Move your cursor over a module's name (or its flags) and press 'K' (or
+;;      'C-c g k' for non-vim users) to view its documentation. This works on
+;;      flags as well (those symbols that start with a plus).
+;;
+;;      Alternatively, press 'gd' (or 'C-c g d') on a module to browse its
+;;      directory (for easy access to its source code).
+
+;; Do not give me 'void variable personal-keybindings' error
+;; for byte-compiled use-package blocks with :bind keyword
+(require 'bind-key)
+
+;; Prefer a fresh .el file over an outdated .elc counterpart
 (setq load-prefer-newer t)
-(defvar personal-keybindings nil)
-(doom! :completion
-       company
-       ;;(helm +fuzzy)
-       ;;ido
-       (ivy
-        ;; +fuzzy
+
+(doom! :input
+       ;;chinese
+       ;;japanese
+
+       :completion
+       company                     ; the ultimate code completion backend
+       (helm                       ; the *other* search engine for love and life
+        +fuzzy)
+       ;;ido               ; the other *other* search engine...
+       (ivy                             ; a search engine for love and life
         +prescient
         +childframe
-        +icons)
+        ;; +icons
+        )
 
        :ui
-       ;; deft
-       doom
-       doom-dashboard
-       ;; doom-quit
-       ;; ophints
-       fill-column
-       hl-todo
-       ;; hydra
-       ;; indent-guides
-       modeline
-       nav-flash
-       ;; neotree
-       ;; treemacs
-       (popup
-        +all
-        +defaults)
-       ;; (pretty-code
-       ;;  +iosevka)
-       ;; tabbar
-       ;; unicode
-       vc-gutter
-       ;; vi-tilde-fringe
-       window-select
-       workspaces
-
-       :term
-       eshell
-       vterm
+       ;;deft              ; notational velocity for Emacs
+       doom                             ; what makes DOOM look the way it does
+       doom-dashboard                   ; a nifty splash screen for Emacs
+       ;;doom-quit         ; DOOM quit-message prompts when you quit Emacs
+       fill-column       ; a `fill-column' indicator
+       hl-todo   ; highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
+       ;;hydra
+       ;;indent-guides     ; highlighted indent columns
+       ;;modeline          ; snazzy, Atom-inspired modeline, plus API
+       nav-flash ; blink the current line after jumping
+       ;;neotree           ; a project drawer, like NERDTree for vim
+       ;;ophints           ; highlight the region an operation acts on
+       (popup   ; tame sudden yet inevitable temporary windows
+        ;;+all             ; catch all popups that start with an asterix
+        +defaults)                    ; default popup rules
+       (pretty-code                   ; replace bits of code with pretty symbols
+        +iosevka)
+       ;;tabs              ; an tab bar for Emacs
+       ;;treemacs          ; a project drawer, like neotree but cooler
+       ;;unicode                ; extended unicode support for various languages
+       vc-gutter              ; vcs diff in the fringe
+       vi-tilde-fringe        ; fringe tildes to mark beyond EOB
+       ;;window-select          ; visually switch windows
+       workspaces             ; tab emulation, persistence & separate workspaces
+       zen                    ; distraction-free coding or writing
 
        :editor
-       snippets
-       ;; (evil
-       ;;  +everywhere
-       ;;  +commands)
-       multiple-cursors
-       file-templates
-       ;; god
-       fold
-       (format +onsave)
-       lispy
-       ;; parinfer
-       (objed
-        +manual)
-       ;; rotate-text
-       ;; word-wrap
+       (evil +everywhere)               ; come to the dark side, we have cookies
+       file-templates                   ; auto-snippets for empty files
+       fold                             ; (nigh) universal code folding
+       (format +onsave)                 ; automated prettiness
+       ;;god               ; run Emacs commands without modifier keys
+       lispy                       ; vim for lisp, for people who don't like vim
+       multiple-cursors            ; editing in many places at once
+       ;;objed             ; text object editing for the innocent
+       ;;parinfer          ; turn lisp into python, sort of
+       rotate-text               ; cycle region at point between text candidates
+       snippets                  ; my elves. They type so I don't have to
+       word-wrap                 ; soft wrapping with language-aware indent
 
        :emacs
-       (dired
-        +icons)
-       ;; +ranger
-       electric
-       vc
+       (dired                           ; making dired pretty [functional]
+        ;; +ranger
+        +icons
+        )
+       electric                   ; smarter, keyword-based electric-indent
+       ibuffer                    ; interactive buffer management
+       vc                         ; version-control and Emacs, sitting in a tree
+
+       :term
+       eshell                    ; a consistent, cross-platform shell (WIP)
+       ;;shell             ; a terminal REPL for Emacs
+       ;;term              ; terminals in Emacs
+       vterm                            ; another terminals in Emacs
+
+       :checkers
+       (syntax +childframe)          ; tasing you for every semicolon you forget
+       spell                         ; tasing you for misspelling mispelling
+       grammar                       ; tasing grammar mistake every you make
 
        :tools
-       ;; debugger
-       (lookup
-        +docsets)
-       rgb
        ;;ansible
+       ;;debugger          ; FIXME stepping through code, to help you add bugs
        direnv
-       docker
-       eval
-       editorconfig
-       ;;ein
-       (flycheck
-        +childframe)
-       (flyspell
-        +aspell)
-       ;;gist
+       ;;docker
+       ;;editorconfig      ; let someone else argue about tabs vs spaces
+       ;;ein               ; tame Jupyter notebooks with emacs
+       (eval +overlay)       ; run code, run (also, repls)
+       ;;gist              ; interacting with github gists
+       (lookup                  ; helps you navigate your code and documentation
+        +docsets)               ; ...or in Dash docsets locally
        lsp
-       ;;macos
-       magit
-       ;; make
-       pass
-       pdf
-       prodigy
-       ;; terraform
-       ;; tmux
-       ;; upload
-       ;; wakatime
+       ;;macos             ; MacOS-specific commands
+       magit      ; a git porcelain for Emacs
+       ;;make              ; run make tasks from Emacs
+       pass       ; password manager for nerds
+       pdf        ; pdf enhancements
+       prodigy    ; FIXME managing external services & code builders
+       rgb        ; creating color strings
+       ;;terraform         ; infrastructure as code
+       ;;tmux              ; an API for interacting with tmux
+       ;;upload            ; map local to remote projects via ssh/ftp
 
        :lang
-       agda
-       assembly
-       (cc +lsp)
-       clojure
-       ;; common-lisp
-       coq
-       ;; crystal
-       ;; csharp
-       data
-       ;; erlang
-       ;; elixir
-       ;; elm
-       emacs-lisp
-       ;; ess
-       ;; go
-       (haskell +lsp)
-       ;; idris
-       ;;(java +meghanada)
-       ;; (javascript +lsp)
-       ;; julia
-       latex
-       ;; ledger
-       ;; lua
-       markdown
-       ;; nim
-       nix
-       ;; kotlin
-       ;; fsharp
-       ocaml
-       (org
-        ;; +ipython
-        ;; +dragndrop
-        +gnuplot
-        +pandoc
-        +present)
-       ;; perl
-       ;; php
-       ;; plantuml
-       ;; purescript
-       (python +lsp)                    ; +pyenv
-       ;; qt
-       ;; racket
-       scheme
-       ;; rest
-       ;; ruby
-       (rust +lsp)
-       ;; scala
-       (sh +fish)
-       ;; solidity
-       ;; swift
-       ;; terra
-       ;; web
-       ;; vala
-
-       ;; Applications are complex and opinionated modules that transform Emacs
-       ;; toward a specific purpose. They may have additional dependencies and
-       ;; should be loaded late.
-       :app
-       ;; irc
-       ;; (rss +org)
-       ;; twitter
-       (write
-        +wordnut
-        +langtool)
-       calendar
-       regex
+       agda                             ; types of types of types of types...
+       assembly                         ; assembly for fun or debugging
+       cc                               ; C/C++/Obj-C madness
+       ;;clojure           ; java with a lisp
+       ;;common-lisp       ; if you've seen one lisp, you've seen them all
+       ;;coq               ; proofs-as-programs
+       ;;crystal           ; ruby at the speed of c
+       ;;csharp            ; unity, .NET, and mono shenanigans
+       data                         ; config/data formats
+       ;;elixir            ; erlang done right
+       ;;elm               ; care for a cup of TEA?
+       emacs-lisp                       ; drown in parentheses
+       ;;erlang            ; an elegant language for a more civilized age
+       ;;ess               ; emacs speaks statistics
+       ;;faust             ; dsp, but you get to keep your soul
+       ;;fsharp           ; ML stands for Microsoft's Language
+       ;;go                ; the hipster dialect
+       (haskell +dante)                 ; a language that's lazier than I am
+       ;;hy                ; readability of scheme w/ speed of python
+       ;;idris             ;
+       ;;(java +meghanada) ; the poster child for carpal tunnel syndrome
+       ;;javascript        ; all(hope(abandon(ye(who(enter(here))))))
+       ;;julia             ; a better, faster MATLAB
+       ;;kotlin            ; a better, slicker Java(Script)
+       latex          ; writing papers in Emacs has never been so fun
+       ;;lean
+       ;;factor
+       ;;ledger            ; an accounting system in Emacs
+       ;;lua               ; one-based indices? one-based indices
+       markdown            ; writing docs for people to ignore
+       ;;nim               ; python + lisp at the speed of c
+       nix                 ; I hereby declare "nix geht mehr!"
+       ;;ocaml             ; an objective camel
+       (org                ; organize your plain life in plain text
+        +dragndrop         ; drag & drop files/images into org buffers
+        ;;+hugo            ; use Emacs for hugo blogging
+        ;;+jupyter        ; ipython/jupyter support for babel
+        +pandoc                         ; export-with-pandoc support
+        +pomodoro                       ; be fruitful with the tomato technique
+        +journal
+        +present)    ; using org-mode for presentations
+       ;;perl              ; write code no one else can comprehend
+       ;;php               ; perl's insecure younger brother
+       ;;plantuml          ; diagrams for confusing people more
+       ;;purescript        ; javascript, but functional
+       python              ; beautiful is better than ugly
+       ;;qt                ; the 'cutest' gui framework ever
+       ;;racket            ; a DSL for DSLs
+       ;;rest              ; Emacs as a REST client
+       ;;rst               ; ReST in peace
+       ;;ruby              ; 1.step {|i| p "Ruby is #{i.even? ? 'love' : 'life'}"}
+       rust   ; Fe2O3.unwrap().unwrap().unwrap().unwrap()
+       ;;scala             ; java, but good
+       ;;scheme            ; a fully conniving family of lisps
+       sh     ; she sells {ba,z,fi}sh shells on the C xor
+       ;;solidity          ; do you need a blockchain? No.
+       ;;swift             ; who asked for emoji variables?
+       ;;terra             ; Earth and Moon in alignment for performance.
+       web                              ; the tubes
 
        :email
-       notmuch
        mu4e
-       ;;wanderlust
+       ;;notmuch
+       ;;(wanderlust +gmail)
 
-       ;; :collab
-       ;;floobits
-       ;;impatient-mode
-
-       :private
-       (org +pomodoro)
+       :app
+       calendar
+       ;;irc               ; how neckbeards socialize
+       ;;(rss +org)        ; emacs as an RSS reader
+       ;;twitter           ; twitter client https://twitter.com/vnought
 
        :config
-       ;; For literate config users. This will tangle+compile a config.org
-       ;; literate config in your `doom-private-dir' whenever it changes.
-       ;; literate
-
-       ;; The default module sets reasonable defaults for Emacs. It also
-       ;; provides a Spacemacs-inspired keybinding scheme and a smartparens
-       ;; config. Use it as a reference for your own modules.
-       (default
-         +bindings
-         +smartparens
-         ))
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(abbrev-file-name "~/.doom.d/abbrev.el")
- '(math-additional-units
-   '((GiB "1024 * MiB" "Giga Byte")
-     (MiB "1024 * KiB" "Mega Byte")
-     (KiB "1024 * B" "Kilo Byte")
-     (B nil "Byte")
-     (Gib "1024 * Mib" "Giga Bit")
-     (Mib "1024 * Kib" "Mega Bit")
-     (Kib "1024 * b" "Kilo Bit")
-     (b "B / 8" "Bit")) t)
- '(math-units-table nil t)
- '(safe-local-variable-values
-   '((eval progn
-           (defvar agda2-dir-version-plist nil)
-           (let
-               ((nix-shell-dir
-                 (locate-dominating-file default-directory "shell.nix")))
-             (unless
-                 (and
-                  (bound-and-true-p agda2-version)
-                  (equal agda2-version
-                         (lax-plist-get agda2-dir-version-plist nix-shell-dir)))
-               (load-file
-                (let
-                    ((coding-system-for-read 'utf-8))
-                  (if
-                      (featurep 'tramp)
-                      (defun remove-sudo-tramp-prefix
-                          (x)
-                        "Remove sudo from path.  Argument X is path."
-                        (if
-                            (tramp-tramp-file-p x)
-                            (let
-                                ((tx
-                                  (tramp-dissect-file-name x)))
-                              (if
-                                  (string-equal "sudo"
-                                                (tramp-file-name-method tx))
-                                  (tramp-file-name-localname tx)
-                                x))
-                          x))
-                    (defsubst remove-sudo-tramp-prefix
-                      (x)
-                      x))
-                  (shell-command-to-string
-                   (concat "nix-shell " nix-shell-dir "shell.nix " "--command " "\"agda-mode locate\""))))
-               (eval
-                `(defun direnv-update-active-agda2-version-transient-hook
-                     (&rest _)
-                   (require 'agda2-mode)
-                   (setq agda2-dir-version-plist
-                         (lax-plist-put agda2-dir-version-plist ,nix-shell-dir agda2-version))
-                   (advice-remove #'direnv--maybe-update-environment #'direnv-update-active-agda2-version-transient-hook)))
-               (advice-add #'direnv--maybe-update-environment :after #'direnv-update-active-agda2-version-transient-hook))
-             (when
-                 (and
-                  (buffer-file-name)
-                  (file-name-extension
-                   (buffer-file-name))
-                  (equal
-                   (file-name-extension
-                    (buffer-file-name))
-                   "agda"))
-               (when
-                   (featurep 'direnv)
-                 (defun direnv-update-agda2-mode-transient-hook
-                     (&rest _)
-                   (agda2-mode)
-                   (advice-remove #'direnv--maybe-update-environment #'direnv-update-agda2-mode-transient-hook))
-                 (advice-add #'direnv--maybe-update-environment :after #'direnv-update-agda2-mode-transient-hook)))))))
- '(save-abbrevs 'silently))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
+       literate
+       (default +bindings +smartparens))

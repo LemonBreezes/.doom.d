@@ -138,7 +138,7 @@
 (require 'epa-file)
 (epa-file-enable)
 #+END_SRC
-** Emacs-libjit
+** Emacs-Libjit
 :PROPERTIES:
 :CREATED_TIME: [2020-01-19 Sun 14:19]
 :END:

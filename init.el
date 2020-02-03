@@ -18,6 +18,10 @@
 ;; for byte-compiled use-package blocks with :bind keyword
 (require 'bind-key)
 
+;; 02/02/2020 - I Just started getting an error about the :bind keyword not
+;; being defined for use-package. This line fixes the error.
+(eval-when-compile (require 'use-package))
+
 ;; Prefer a fresh .el file over an outdated .elc counterpart
 (setq load-prefer-newer t)
 
@@ -37,12 +41,12 @@
         )
 
        :ui
-       ;;deft              ; notational velocity for Emacs
+       ;; deft              ; notational velocity for Emacs
        doom                             ; what makes DOOM look the way it does
        doom-dashboard                   ; a nifty splash screen for Emacs
        ;;doom-quit         ; DOOM quit-message prompts when you quit Emacs
-       fill-column       ; a `fill-column' indicator
-       hl-todo   ; highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
+       fill-column            ; a `fill-column' indicator
+       hl-todo                ; highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
        ;;hydra
        ;;indent-guides     ; highlighted indent columns
        ;;modeline          ; snazzy, Atom-inspired modeline, plus API
@@ -107,7 +111,8 @@
        (eval +overlay)       ; run code, run (also, repls)
        ;;gist              ; interacting with github gists
        (lookup                  ; helps you navigate your code and documentation
-        +docsets)               ; ...or in Dash docsets locally
+        +docsets               ; ...or in Dash docsets locally
+        +offline)
        lsp
        ;;macos             ; MacOS-specific commands
        magit      ; a git porcelain for Emacs

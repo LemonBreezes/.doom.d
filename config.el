@@ -6,9 +6,10 @@
   (setq font-utils-use-memory-cache t))
 
 (setq doom-font (font-spec :family "Iosevka" :size 16)
-      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 17)
+      doom-variable-pitch-font (font-spec :family "IBM Plex Sans" :size 17)
       doom-unicode-font (font-spec :family "DejaVu Sans Mono" :size 19)
-      doom-serif-font (font-spec :family "DejaVu Serif" :size 19))
+      doom-serif-font (font-spec :family "IBM Plex Serif" :size 19)
+      )
 
 (setq browse-url-browser-function #'browse-url-generic
       browse-url-generic-program "qutebrowser")
@@ -68,8 +69,10 @@
 
 (advice-add #'force-mode-line-update :override #'ignore)
 
-(require 'epa-file)
-(epa-file-enable)
+(use-package! epa-file
+  :defer-incrementally t
+  :config
+  (epa-file-enable))
 
 (when (and (fboundp #'jit-disassemble)
            (fboundp #'+evil-delete-region-if-mark-a))
@@ -106,13 +109,6 @@
 (when (fboundp #'jit-disassemble)
   (after! with-editor
     (advice-remove #'shell-command #'shell-command--shell-command-with-editor-mode)))
-
-(when (fboundp #'jit-disassemble)
-  (after! direnv
-    (advice-remove #'shell-command #'+direnv-update-async-shell-command-a)
-    (defadvice shell-command (before +direnv-update-async-shell-command-a (command &optional output-buffer _error-buffer)
-                                     activate)
-      (+direnv-update-async-shell-command-a command output-buffer _error-buffer))))
 
 (when (fboundp #'jit-disassemble)
   (after! evil
@@ -189,6 +185,7 @@
         (apply #'+evil/repeat-evil-snipe-X args)))))
 
 (defconst alphabet '(?a ?b ?c ?d ?e ?f ?g ?h ?i ?j ?k ?l ?m ?n ?o ?p ?q ?r ?s ?t ?u ?v ?w ?x ?y ?z))
+
 (defconst vowels '(?a ?e ?i ?o ?u))
 (defconst numbers '(?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9))
 (defconst consonants (cl-set-difference alphabet vowels))
@@ -222,6 +219,11 @@
     ("k" . "n")
     ("h" . "m")
 
+    ("a" . "a")
+    ("q" . "q")
+    ("w" . "w")
+    ("g" . "g")
+
     ("C" . "E")
     ("P" . "R")
     ("Z" . "T")
@@ -246,6 +248,7 @@
     ("D" . "V")
     ("K" . "N")
     ("H" . "M")))
+(defconst keyboard-layout-prefix-keys '("g" "z" "gz"))
 (defconst symbol-bigrams '("t;" ":"
                            "t`" "~"
                            "t7" "&"
@@ -319,7 +322,11 @@
 
 (defconst kbl-reverse-translation-alist
   (mapcar (lambda (l)
-            (setq l (cons (car l) (cdr l))))
+            (setq l (cons (cdr l) (car l))))
+          kbl-translation-alist))
+
+(defconst kbl-admissible-prefixes
+  (mapcar (lambda (x) (string-to-char (car x)))
           keyboard-layout-translation-alist))
 
 (defun kbl-print (s &optional control-p meta-p shift-p super-p)
@@ -351,19 +358,33 @@
     (lambda (prompt)
       (if (funcall translate-keys-p key-from) key-to key-from))))
 
+(defvar evil-colemak-xvcf-enabled t)
+
+(defun toggle-evil-colemak-xvcf ()
+  (interactive)
+  (if evil-colemak-xvcf-enabled
+      (setq evil-colemak-xvcf-enabled nil)
+    (setq evil-colemak-xvcf-enabled t)))
+
+(global-set-key (kbd "M-s-SPC") #'toggle-evil-colemak-xvcf)
+
 (defun my-translate-keys-p (key-from)
+  (declare (side-effect-free t))
   "Returns whether conditional key translations should be active.  See make-conditional-key-translation function. "
-  (and
-   ;; Only allow a non identity translation if we're beginning a Key Sequence.
-   (equal key-from (this-command-keys))
-   (not isearch-mode)
-   (and (or (evil-motion-state-p)
-            (evil-normal-state-p)
-            (evil-visual-state-p)
-            (evil-operator-state-p))
-        (not (or (bound-and-true-p avy--overlays-back)
-                 (bound-and-true-p avy--overlays-lead)
-                 (string-prefix-p "evil-snipe-" (symbol-name this-command)))))))
+  (and evil-colemak-xvcf-enabled
+       ;; Only allow a non identity translation if we're beginning a Key Sequence.
+       ;; (equal key-from (this-command-keys))
+       (not isearch-mode)
+       (or (memq (aref (this-command-keys) 0) kbl-admissible-prefixes)
+           (eq (aref (this-command-keys) 0) 'easymotion)
+           (equal key-from (this-command-keys)))
+       (and (or (evil-motion-state-p)
+                (evil-normal-state-p)
+                (evil-visual-state-p)
+                (evil-operator-state-p))
+            (not (or (bound-and-true-p avy--overlays-back)
+                     (bound-and-true-p avy--overlays-lead)
+                     (string-prefix-p "evil-snipe-" (symbol-name this-command)))))))
 
 (cl-loop for p in keyboard-layout-translation-alist
          do (make-conditional-key-translation (kbd (car p)) (kbd (cdr p)) #'my-translate-keys-p))
@@ -425,11 +446,7 @@
                          haskell-mode
                          ))
                  (eq (length (this-command-keys-vector))
-                     1))
-            (and (looking-back "https?" (point-at-bol) nil)
-                 (eq (length (this-command-keys-vector))
-                     1))
-            )
+                     1)))
     (cond ((eq (aref (this-command-keys-vector)
                      0)
                ?\;)
@@ -484,6 +501,21 @@
 
 (add-hook 'post-self-insert-hook #'correct-shifted-char)
 
+(use-package! perfect-margin
+  :custom
+  (perfect-margin-visible-width 128)
+  :config
+  ;; enable perfect-mode
+  (perfect-margin-mode t)
+  
+  ;; add additinal bding on margin area
+  (dolist (margin '("<left-margin> " "<right-margin> "))
+    (global-set-key (kbd (concat margin "<mouse-1>")) 'ignore)
+    (global-set-key (kbd (concat margin "<mouse-3>")) 'ignore)
+    (dolist (multiple '("" "double-" "triple-"))
+      (global-set-key (kbd (concat margin "<" multiple "wheel-up>")) 'mwheel-scroll)
+      (global-set-key (kbd (concat margin "<" multiple "wheel-down>")) 'mwheel-scroll))))
+
 (use-package! hippie-exp
   :config
   (defun my/he-try-expand-flx-regexp (str)
@@ -530,17 +562,19 @@
         '(yas-hippie-try-expand
           try-expand-dabbrev
           try-expand-dabbrev-from-kill
-          my/he-try-expand-flx
           try-expand-dabbrev-all-buffers
           try-complete-file-name-partially
           try-complete-file-name
+          ;; my/he-try-expand-flx
           try-expand-all-abbrevs
           try-expand-list
           try-expand-line
           try-complete-lisp-symbol-partially
-          try-complete-lisp-symbol)))
+          try-complete-lisp-symbol
+          )))
 
-(global-set-key (kbd "M-/") #'hippie-expand)
+;; (global-set-key (kbd "M-/") #'hippie-expand)
+(global-set-key (kbd "C-c C-/") #'hippie-expand)
 
 (autoload 'View-scroll-half-page-forward "view")
 (autoload 'View-scroll-half-page-backward "view")
@@ -586,8 +620,8 @@
     (set-transient-map
      `(keymap ,@(if (and (featurep 'evil)
                          (not (evil-emacs-state-p)))
-                    (list (cons (string-to-char (kbl-print-reverse "v")) #'View-scroll-half-page-forward)
-                          (cons (string-to-char (kbl-print-reverse "u")) #'View-scroll-half-page-backward))
+                    (list (cons (string-to-char (if evil-colemak-xvcf-enabled (kbl-print-reverse "v") "d")) #'View-scroll-half-page-forward)
+                          (cons (string-to-char (if evil-colemak-xvcf-enabled (kbl-print-reverse "u") "u")) #'View-scroll-half-page-backward))
                   (cons ?v real-this-command))))
     (save-excursion
       (goto-line linen)
@@ -600,6 +634,17 @@
 
 (defun my-indicate-scroll-backward (f &rest args)
   (my-indicate-scroll (window-start) f args))
+
+(defun indented-copy-for-reddit ()
+  "Copy and indent active region or current defun."
+  (interactive)
+  (when-let* ((bounds (if (region-active-p)
+                          (cons (region-beginning) (region-end))
+                        (bounds-of-thing-at-point 'defun)))
+              (text (buffer-substring-no-properties (car bounds) (cdr bounds))))
+    (setq deactivate-mark t)
+    (kill-new (replace-regexp-in-string "^" "    " text))
+    (message "Copied!")))
 
 (defun crux-kill-line-backwards ()
   "Kill line backwards and adjust the indentation."
@@ -663,6 +708,72 @@ end-of-buffer signals; pass the rest to the default handler."
 ;; turn off auto revert messages
 (setq auto-revert-verbose nil)
 
+(use-package! eaf
+  :defer-incrementally t
+  :custom
+  (eaf-find-alternate-file-in-dired t)
+  :config
+  (eaf-bind-key scroll_up "RET" eaf-pdf-viewer-keybinding)
+  (eaf-bind-key scroll_down_page "DEL" eaf-pdf-viewer-keybinding)
+  (eaf-bind-key scroll_up "C-n" eaf-pdf-viewer-keybinding)
+  (eaf-bind-key scroll_down "C-p" eaf-pdf-viewer-keybinding)
+  (eaf-bind-key take_photo "p" eaf-camera-keybinding)
+
+  (defvar buffer-url nil)
+  (defun eaf-start-process-in-nix-shell ()
+    (interactive)
+    (if (process-live-p eaf-process)
+        (message "EAF process has started.")
+      (setq eaf-process
+            (apply 'start-process
+                   eaf-name
+                   eaf-name
+                   "nix-shell"
+                   "-p"
+                   "qutebrowser"
+                   "python3Packages.pip"
+                   "python3Packages.xlib"
+                   "python3Packages.pyqt5_with_qtwebkit"
+                   "python3Packages.pyqrcode"
+                   "python3Packages.dbus-python"
+                   "python3Packages.pydbus"
+                   "python3Packages.pyqtwebengine"
+                   "python3Packages.pymediainfo"
+                   "python3Packages.poppler-qt5"
+                   "python3Packages.pymupdf"
+                   "python3Packages.feedparser"
+                   "python3Packages.grip"
+                   "grip"
+                   "qt5Full"
+                   "--run"
+                   (eaf-format-nix-shell-args eaf-python-command
+                                              (list eaf-python-file)
+                                              (eaf-get-render-size)
+                                              (list eaf-proxy-host eaf-proxy-port eaf-proxy-type (concat user-emacs-directory "eaf"))
+                                              (list (string-join (cl-loop for (key . value) in eaf-var-list
+                                                                          collect (format "%sᛝ%s" key value)) "ᛡ")))))
+      (set-process-query-on-exit-flag eaf-process nil)
+      (set-process-sentinel
+       eaf-process
+       (lambda (process event)
+         (message (format "%s %s" process event))
+         ))
+      (message "EAF process starting...")))
+
+  (advice-add #'eaf-start-process :override #'eaf-start-process-in-nix-shell)
+
+  (evil-set-initial-state 'eaf-mode 'emacs)
+
+  (defun eaf-format-nix-shell-args (python-command &rest string-list-list)
+    (list (concat python-command
+                  " "
+                  (mapconcat (lambda (x)
+                               (if (string-blank-p x)
+                                   "\"\""
+                                 x))
+                             (-flatten string-list-list)
+                             " ")))))
+
 (when (display-graphic-p)
   (use-package! exwm-mff
     :hook (exwm-init . exwm-mff-mode)
@@ -694,11 +805,6 @@ end-of-buffer signals; pass the rest to the default handler."
   (require 'exwm)
   (require 'exwm-systemtray)
   (exwm-systemtray-enable)
-  (require 'exwm-randr)
-  (setq exwm-randr-workspace-monitor-plist
-        '(2 "HDMI-0" 1 "DP-5"  0 "DP-3")
-        exwm-workspace-number 3)
-  (exwm-randr-enable)
   (exwm-enable)
 
   (add-hook 'exwm-mode-hook #'doom-mark-buffer-as-real-h)
@@ -734,12 +840,12 @@ end-of-buffer signals; pass the rest to the default handler."
    nil 0)
 
   ;; Start caldav adapter for etesync
-  (call-process-shell-command
-   (string-join '("docker" "run" "--name" "etesync-dav" "-d" "-v"
-                  "etesync-dav:/data" "-p" "37358:37358"
-                  "-p" "37359:37359" "--restart=always" "etesync/etesync-dav")
-                " ")
-   nil "*etesync-dav*")
+  ;; (call-process-shell-command
+  ;;  (string-join '("docker" "run" "--name" "etesync-dav" "-d" "-v"
+  ;;                 "etesync-dav:/data" "-p" "37358:37358"
+  ;;                 "-p" "37359:37359" "--restart=always" "etesync/etesync-dav")
+  ;;               " ")
+  ;;  nil "*etesync-dav*")
 
   (defun discord-start ()
     (interactive)
@@ -774,7 +880,9 @@ end-of-buffer signals; pass the rest to the default handler."
    (kbd "s-q")
    (lambda ()
      (interactive)
-     (call-process-shell-command "taskset 0x6 qutebrowser" nil 0)))
+     (call-process-shell-command
+      (concat "taskset 0x6 " browse-url-generic-program)
+      nil 0)))
 
   (exwm-input-set-key
    (kbd "s-Q")
@@ -798,6 +906,45 @@ end-of-buffer signals; pass the rest to the default handler."
                       (string-prefix-p "sun-awt-X11-" exwm-instance-name)
                       (string= "gimp" exwm-instance-name))
               (exwm-workspace-rename-buffer exwm-title))))
+
+(after! exwm
+  (setq exwm-manage-force-tiling t))
+
+(after! exwm
+  (exwm-input-set-key
+   [XF86MonBrightnessUp]
+   (lambda ()
+     (interactive)
+     (call-process-shell-command "/run/current-system/sw/bin/light -A 10" nil 0)))
+
+  (exwm-input-set-key
+   [XF86MonBrightnessDown]
+   (lambda ()
+     (interactive)
+     (call-process-shell-command "/run/current-system/sw/bin/light -U 10" nil 0)))
+
+  (exwm-input-set-key
+   (kbd "s-SPC")
+   (lambda ()
+     (interactive)
+     (call-process-shell-command "urxvt" nil 0)
+     (run-at-time 0.1 nil (lambda ()
+                            (call-process-shell-command "xdotool click 1" nil 0)))))
+
+
+  (exwm-input-set-key
+   (kbd "s-L")
+   (lambda ()
+     (interactive)
+     (call-process-shell-command "sudo slock" nil 0)))
+
+
+  (exwm-input-set-key
+   (kbd "s-l")
+   (lambda ()
+     (interactive)
+     (call-process-shell-command "xtrlock-pam -b none" nil 0)))
+  )
 
 (require 'show-eol)
 (require 'feebleline)
@@ -829,7 +976,8 @@ end-of-buffer signals; pass the rest to the default handler."
   (format-time-string "[%Y-%m-%d %H:%M:%S]"))
 
 (defun oof-feebleline-systray-padding ()
-  (make-string (max (- (* 3 (length (or (bound-and-true-p exwm-systemtray--list) ())))
+  (make-string (max (- (* 3 (length (or (bound-and-true-p exwm-systemtray--list)
+                                        ())))
                        2)
                     0)
                ?\s))
@@ -847,6 +995,7 @@ end-of-buffer signals; pass the rest to the default handler."
 
 (defun oof-pdf-position ()
   (and (eq major-mode 'pdf-view-mode)
+       (ignore-errors (pdf-view-current-page))
        (concat " P" (number-to-string (ignore-errors (pdf-view-current-page)))
                ;; Avoid errors during redisplay.
                "/"
@@ -904,14 +1053,18 @@ end-of-buffer signals; pass the rest to the default handler."
            ([remap isearch-query-replace] . anzu-isearch-query-replace)
            ([remap isearch-query-replace-regexp] . anzu-isearch-query-replace-regexp))))
 
-(require 'aggressive-indent)
-(global-aggressive-indent-mode +1)
-(add-to-list 'aggressive-indent-excluded-modes 'html-mode)
-(add-to-list
- 'aggressive-indent-dont-indent-if
- '(and (derived-mode-p 'c++-mode 'nix-mode)
-       (null (string-match "\\([;{}]\\|\\b\\(if\\|for\\|while\\)\\b\\)"
-                           (thing-at-point 'line)))))
+(use-package! aggressive-indent
+  :after-call after-find-file
+  :config
+  (global-aggressive-indent-mode +1)
+  (add-to-list 'aggressive-indent-excluded-modes 'html-mode)
+  (add-to-list 'aggressive-indent-excluded-modes 'eshell-mode)
+  (add-to-list 'aggressive-indent-excluded-modes 'org-mode)
+  (add-to-list
+   'aggressive-indent-dont-indent-if
+   '(and (derived-mode-p 'c++-mode 'nix-mode)
+         (null (string-match "\\([;{}]\\|\\b\\(if\\|for\\|while\\)\\b\\)"
+                             (thing-at-point 'line))))))
 
 ;; we will call `blink-matching-open` ourselves...
 (remove-hook 'post-self-insert-hook
@@ -974,9 +1127,10 @@ FACE defaults to inheriting from default and highlight."
 (use-package! super-save
   :after-call after-find-file
   :config
-  ;; (add-to-list 'super-save-triggers #'ace-window)
+  (add-to-list 'super-save-triggers #'ace-window)
   (setq super-save-triggers nil
-        super-save-auto-save-when-idle t)
+        super-save-auto-save-when-idle t
+        super-save-exclude '("config.org"))
   (super-save-mode +1))
 
 (use-package! page-break-lines
@@ -1225,14 +1379,72 @@ until the current match."
 (use-package! font-lock-studio
   :commands font-lock-studio)
 
-(when (featurep! :tools flyspell +aspell)
+(when (featurep! :checkers spell)
   (after! ispell
     (setq ispell-quietly nil
-          ispell-dictionary "en_us"
-          ispell-complete-word-dict "~/.doom.d/dict/english-words.txt"))
+          ispell-dictionary "en_US"
+          ispell-complete-word-dict "~/.doom.d/dict/english-words.txt"
+          ispell-personal-dictionary "~/.doom.d/.aspell.en.pws"))
   (after! flyspell
     (setq flyspell-issue-message-flag t
           flyspell-abbrev-p t)))
+
+(after! ispell
+  (defun endless/org-ispell ()
+    "Configure `ispell-skip-region-alist' for `org-mode'."
+    (make-local-variable 'ispell-skip-region-alist)
+    (add-to-list 'ispell-skip-region-alist '(org-property-drawer-re))
+    (add-to-list 'ispell-skip-region-alist '("~" "~"))
+    (add-to-list 'ispell-skip-region-alist '("=" "="))
+    (add-to-list 'ispell-skip-region-alist '("[^\\]$" "[^\\]$"))
+    (add-to-list 'ispell-skip-region-alist '("^#\\+BEGIN_SRC" . "^#\\+END_SRC"))
+    (add-to-list 'ispell-skip-region-alist '(":\\(PROPERTIES\\|LOGBOOK\\):" . ":END:"))
+    (add-to-list 'ispell-skip-region-alist '("[^\\]\\\\begin\{\\([^\\s$\\s-]+\\)\}" . "[^\\]\\\\end\{\\([^\\s$\\s-]+\\)\}")))
+  (add-hook 'org-mode-hook #'endless/org-ispell))
+
+(after! ispell
+  (define-key ctl-x-map "\C-i"
+    #'endless/ispell-word-then-abbrev)
+  ;; I should disable this keybinding from anot some other way
+  (after! annot
+    (define-key ctl-x-map "\C-i"
+      #'endless/ispell-word-then-abbrev))
+
+  (defun endless/simple-get-word ()
+    (car-safe (save-excursion (ispell-get-word nil))))
+
+  (defun endless/ispell-word-then-abbrev (p)
+    "Call `ispell-word', then create an abbrev for it.
+With prefix P, create local abbrev. Otherwise it will
+be global.
+If there's nothing wrong with the word at point, keep
+looking for a typo until the beginning of buffer. You can
+skip typos you don't want to fix with `SPC', and you can
+abort completely with `C-g'."
+    (interactive "P")
+    (let (bef aft)
+      (save-excursion
+        (while (if (setq bef (endless/simple-get-word))
+                   ;; Word was corrected or used quit.
+                   (if (ispell-word nil 'quiet)
+                       nil              ; End the loop.
+                     ;; Also end if we reach `bob'.
+                     (not (bobp)))
+                 ;; If there's no word at point, keep looking
+                 ;; until `bob'.
+                 (not (bobp)))
+          (backward-word)
+          (backward-char))
+        (setq aft (endless/simple-get-word)))
+      (if (and aft bef (not (equal aft bef)))
+          (let ((aft (downcase aft))
+                (bef (downcase bef)))
+            (define-abbrev
+              (if p local-abbrev-table global-abbrev-table)
+              bef aft)
+            (message "\"%s\" now expands to \"%s\" %sally"
+                     bef aft (if p "loc" "glob")))
+        (user-error "No typo at or before point")))))
 
 (use-package! annot
   :commands (annot-edit/add annot-remove annot-load-annotations)
@@ -1287,6 +1499,54 @@ until the current match."
   :config
   (setq lorem-ipsum-paragraph-separator "\n\n"
         lorem-ipsum-sentence-separator " "))
+
+(defun unpackaged/lorem-ipsum-overlay (&optional remove-p)
+  "Overlay all text in current buffer with \"lorem ipsum\" text.
+When REMOVE-P (interactively, with prefix), remove
+overlays. Useful for taking screenshots without revealing buffer
+contents."
+  (interactive "P")
+  (dolist (ov (overlays-in (point-min) (point-max)))
+    ;; Clear existing overlays created by this function.
+    (when (overlay-get ov :lorem-ipsum-overlay)
+      (delete-overlay ov)))
+  (unless remove-p
+    (require 'lorem-ipsum)
+    (let ((lorem-ipsum-words
+           (cl-loop for paragraph in lorem-ipsum-text
+                    append (cl-loop for sentence in paragraph
+                                    append (split-string sentence (rx (or space punct))
+                                                         'omit-nulls))))
+          (case-fold-search nil))
+      (cl-labels ((overlay-match ()
+                                 (let* ((beg (match-beginning 0))
+                                        (end (match-end 0))
+                                        (replacement-word (lorem-word (match-string 0)))
+                                        (ov (make-overlay beg end)))
+                                   (when replacement-word
+                                     (overlay-put ov :lorem-ipsum-overlay t)
+                                     (overlay-put ov 'display replacement-word))))
+                  (lorem-word (word)
+                              (let* ((length (length word)))
+                                (cl-loop for liw in lorem-ipsum-words
+                                         when (= length (length liw))
+                                         collect liw into matches
+                                         finally return
+                                         (when matches
+                                           (apply-case word (downcase (seq-random-elt matches)))))))
+                  (apply-case (source target)
+                              (cl-loop for sc across-ref source
+                                       for tc across-ref target
+                                       when (not (string-match-p (rx lower) (char-to-string sc)))
+                                       do (setf tc (string-to-char (upcase (char-to-string tc)))))
+                              target))
+        (save-excursion
+          (goto-char (point-min))
+          (while (re-search-forward (rx (1+ alpha)) nil t)
+            (overlay-match)))))))
+
+(map! :leader
+      :desc "convert region" "ilr" #'unpackaged/lorem-ipsum-overlay)
 
 (after! which-key
   (add-to-list 'which-key-replacement-alist
@@ -1385,15 +1645,13 @@ until the current match."
                  '((nil . "emms") . (nil . "Music"))))
   :config
   (require 'emms-setup)
-  (emms-all))
-
-(after! emms
+  (emms-all)
   (defun ambrevar/emms-track-description-with-album (track)
     "Simple function to give a user-readable description of a track.
-If it's a file track, just return the file name.  Otherwise,
-return the type and the name with a colon in between.
-Hex-encoded characters in URLs are replaced by the decoded
-character."
+  If it's a file track, just return the file name.  Otherwise,
+  return the type and the name with a colon in between.
+  Hex-encoded characters in URLs are replaced by the decoded
+  character."
     (let ((type (emms-track-type track)))
       (cond ((eq 'file type)
              (cl-flet ((fmt (string &optional suffix prefix)
@@ -1413,7 +1671,7 @@ character."
              (emms-format-url-track-name (emms-track-name track)))
             (t (concat (symbol-name type)
                        ": " (emms-track-name track))))))
-
+  
   (defun ambrevar/emms-time-for-display (track)
     "Inspired by `emms-playing-time-display'."
     (let* ((total-playing-time
@@ -1424,10 +1682,10 @@ character."
            (total-min-only (/ total-playing-time 60))
            (total-sec-only (% total-playing-time 60)))
       (format "%02d:%02d" total-min-only total-sec-only)))
-
+  
   (defun ambrevar/emms-play-on-add (old-pos)
     "Play tracks when calling `emms-browser-add-tracks' if nothing
-is currently playing."
+  is currently playing."
     (interactive)
     (when (or (not emms-player-playing-p)
               emms-player-paused-p
@@ -1440,7 +1698,7 @@ is currently playing."
         (emms-playlist-select (point)))
       (emms-stop)
       (emms-start)))
-
+  
   (defun track-description (track)
     "Return a description of the current TRACK."
     (if (and (emms-track-get track 'info-artist)
@@ -1455,7 +1713,7 @@ is currently playing."
                 (ptot (format  "%s - %s - %s" art alb tit ))
                 (t (emms-track-simple-description track))))
       (emms-track-simple-description track)))
-
+  
   (defun ambrevar/emms-browser-track-artist-and-title-format (bdata fmt)
     (concat
      "%i"
@@ -1466,44 +1724,43 @@ is currently playing."
        (if (and track (not (string= track "0")))
            "%T. "
          ""))
-     "%n")))
-
-(after! emms
+     "%n"))
+  (setq emms-directory "~/.doom.d/emms")
   (setq emms-browser-info-title-format 'ambrevar/emms-browser-track-artist-and-title-format)
   (setq emms-playlist-default-major-mode 'emms-playlist-mode)
   (add-to-list 'emms-track-initialize-functions 'emms-info-initialize-track)
-
+  
   (setq later-do-interval 0.01
         later-do-batch 1)
-
+  
   (setq emms-source-file-directory-tree-function #'emms-source-file-directory-tree-find)
   (setq emms-source-file-default-directory "~/hdd/unindexed-music")
   (setq emms-player-mpd-music-directory "~/hdd/music")
-
+  
   (setq emms-playlist-buffer-name "Music-EMMS")
-
+  
   (when (executable-find "emms-print-metadata")
     (require 'emms-info-libtag)
     (add-to-list 'emms-info-functions 'emms-info-libtag))
-
+  
   (setq emms-info-asynchronously t)
-
+  
   (setq emms-track-description-function #'ambrevar/emms-track-description-with-album)
-
+  
   (setq emms-repeat-playlist t
         emms-stream-repeat-p t)
   (setq emms-browser-covers 'emms-browser-cache-thumbnail)
-
+  
   (add-hook 'emms-browser-tracks-added-hook #'ambrevar/emms-play-on-add)
   (setq emms-volume-change-function #'emms-volume-pulse-change)
   (setq emms-volume-mode-timeout 0)
   (setq emms-volume-change-amount 2)
-
+  
   (setq emms-browser-make-filter "all-files")
   (setq emms-browser-filter-only-type 'file)
   (setq emms-browser-covers #'emms-browser-cache-thumbnail-async)
-
-
+  
+  
   (emms-lyrics 1)
   (emms-score 1)
   (emms-history-load)
@@ -1565,6 +1822,10 @@ is currently playing."
                                 nil -8)
        ))
    '(emms-mode-line-titlebar-function nil)))
+
+(when (featurep! :editor evil)
+  (map! :map emms-playlist-mode-map
+        :n "q" #'bury-buffer))
 
 (after! ivy
   (ivy-set-actions
@@ -1743,7 +2004,7 @@ is currently playing."
     (setq +w3m--old-wconf nil))))
 
 (when (featurep! :editor evil)
-  (evil-set-initial-state 'w3m-mode 'emacs))
+  (add-hook 'w3m-mode-hook #'evil-emacs-state))
 
 (after! w3m
   (define-key w3m-mode-map (kbl-kbd "q") #'+workspace/other))
@@ -1814,282 +2075,6 @@ is currently playing."
   (load (expand-file-name "ivy-youtube" doom-private-dir))
 
   (setq ivy-youtube-play-at (executable-find "mpv")))
-
-(use-package! gnus
-  :bind (:map doom-leader-map
-          ("an" . gnus))
-  :init
-  (after! which-key
-    (add-to-list 'which-key-replacement-alist
-                 '((nil . "gnus") . (nil . "News"))))
-  :config
-  (require 'smtpmail)
-  (require 'gnus)
-  (require 'gnus-msg)
-  (require 'gnus-score)
-  (require 'gnus-start)
-  (require 'gnus-async))
-
-(after! gnus
-  (setq gnus-asynchronous t
-        gnus-plugged nil)
-  (setq gnus-use-full-window nil
-        gnus-inhibit-startup-message t
-        gnus-add-to-list t
-        gnus-always-read-dribble-file t
-        gnus-interactive-exit nil
-        gnus-save-newsrc-file nil
-        gnus-inhibit-user-auto-expire t
-        gnus-use-scoring t
-                                        ; gnus-use-trees nil
-        gnus-summary-default-score 0
-        gnus-summary-expunge-below -256
-        gnus-summary-make-false-root 'dummy
-        gnus-suppress-duplicates t
-        gnus-score-expiry-days nil
-        gnus-fetch-old-headers t
-        gnus-home-score-file "~/.mail/gnus.score"
-        gnus-agent-directory "~/.mail/agent/"
-        gnus-directory "~/.mail/news"
-        gnus-article-save-directory "~/.mail/news"
-        gnus-cache-dictory "~/.mail/news/cache"
-        gnus-cache-active-file "~/.mail/news/cache/active"
-        gnus-kill-files-directory "~/.mail/news"
-        nndraft-directory "~/.mail/drafts/"
-        gnus-default-article-saver 'gnus-summary-save-in-mail
-        gnus-save-killed-list nil
-                                        ;gnus-auto-expirable-newsgroups "gmane.*"
-        gnus-ignored-mime-types '("text/x-gnus")
-        ;; vcard-ignored-from-addresses
-        gnus-show-all-headers nil
-        gnus-treat-capitalize-sentences nil
-        gnus-treat-display-picons nil ;not bound?
-        gnus-treat-display-smileys nil
-        gnus-treat-display-x-face t
-        gnus-treat-emphasize nil
-        gnus-treat-fill-long-lines nil
-        gnus-treat-hide-signature nil
-                                        ;qgnus-treat-hide-citation t
-        gnus-treat-overstrike nil
-        gnus-treat-play-sounds nil ;not bound?
-        gnus-treat-strip-banner nil
-        gnus-treat-strip-cr t
-        gnus-treat-strip-leading-blank-lines nil
-        gnus-treat-strip-multiple-blank-lines nil
-        gnus-treat-strip-pem nil
-        gnus-treat-strip-trailing-blank-lines nil
-        gnus-treat-translate nil ;not bound?
-        )
-  (setq gnus-inhibit-images nil
-        ;; mm-discouraged-alternatives '("text/html" "text/richtext")
-        )
-
-  ;; Show the article headers in this order.
-  (setq gnus-sorted-header-list
-        '("^From:" "^Reply-To" "^Organization:" "^To:" "^Cc:" "^Newsgroups:"
-          "^Subject:" "^Date:" "^Gnus"))
-
-  (setq gnus-visible-headers
-        "^From:\\|^Reply-To\\|^Organization:\\|^To:\\|^Cc:\\|^Newsgroups:\\|^Subject:\\|^Date:\\|^Gnus")
-
-  (setq ;gnus-sorted-header-list gnus-visible-headers
-   gnus-extra-headers
-   '(To Cc Keywords Gcc Newsgroups X-Spam-Flag)
-   gnus-extra-headers
-   nnmail-extra-headers)
-  (setq message-generate-headers-first t
-        message-insert-canlock nil
-        message-wash-forwarded-subjects t
-        message-make-forward-subject-function #'message-forward-subject-fwd
-        message-use-mail-followup-to 'use
-        message-subscribed-address-functions '(gnus-find-subscribed-addresses))
-  ;; (setq mail-source-delete-incoming t)
-
-  (setq nnmail-split-methods 'nnmail-split-fancy
-        nnmail-split-header-length-limit 4096
-        nnmail-use-long-file-names t
-        nnmail-crosspost nil)
-
-  ;; (setq gnus-select-method '(nntp "news.gwene.org")) ;; Read feeds/atom through gwene
-  (setq gnus-select-method
-        '(nntp "news.gmane.org"
-               (nntp-open-connection-function nntp-open-plain-stream)))
-  (setq gnus-secondary-select-methods '((nntp "nntp.aioe.org")
-                                        (nnmaildir "outlook"
-                                                   (directory "~/.mail/outlook"))
-                                        (nntp "news.eternal-september.org")
-                                        (nntp "news.gwene.org")
-                                        ;; (nnreddit "")
-                                        ;; (nnml "")
-                                        ))
-
-  (setq gnus-message-archive-method
-        '(nnfolder "archive"
-                   (nnfolder-directory    "~/.mail/outlook/Archive")
-                   (nnfolder-active-file  "~/.mail/outlook/Archive/active")
-                   (nnfolder-get-new-mail nil)))
-
-  ;; Crypt-foo
-  (setq gnus-message-replysign t
-        gnus-message-replyencrypt t
-        mm-verify-option 'always
-        mm-decrypt-option 'always)
-
-  ;; (define-key message-minibuffer-local-map [(tab)] 'bbdb-complete-name)
-
-  ;; Buttonize the different parts, please
-  (setq gnus-buttonized-mime-types '("multipart/encrypted" "multipart/signed"))
-
-  ;; But keep buttons for multiple parts
-  (setq gnus-inhibit-mime-unbuttonizing t)
-
-  ;; ask encryption password once
-  (setq epa-file-cache-passphrase-for-symmetric-encryption t)
-
-  (setq gnus-thread-sort-functions
-        '(gnus-thread-sort-by-most-recent-date
-          (not gnus-thread-sort-by-number)))
-
-                                        ; NO 'passive
-  (setq gnus-use-cache t)
-
-  ;; press "o" to view all groups
-  (defun my-gnus-group-list-subscribed-groups ()
-    "List all subscribed groups with or without un-read messages"
-    (interactive)
-    (gnus-group-list-all-groups 5))
-
-  (define-key gnus-group-mode-map
-    ;; list all the subscribed groups even they contain zero un-read messages
-    (kbd "o") 'my-gnus-group-list-subscribed-groups)
-
-  ;; Fetch only part of the article if we can.
-  ;; I saw this in someone's .gnus
-  (setq gnus-read-active-file 'some)
-
-  ;; open attachment
-  (eval-after-load 'mailcap
-    '(progn
-       (cond
-        ;; on macOS, maybe change mailcap-mime-data?
-        ((eq system-type 'darwin))
-        ;; on Windows, maybe change mailcap-mime-data?
-        ((eq system-type 'windows-nt))
-        (t
-         ;; Linux, read ~/.mailcap
-         (mailcap-parse-mailcaps)))))
-
-  ;; Tree view for groups.
-  (add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
-
-  ;; Threads!  I hate reading un-threaded email -- especially mailing
-  ;; lists.  This helps a ton!
-  (setq gnus-summary-thread-gathering-function 'gnus-gather-threads-by-subject)
-
-  ;; Also, I prefer to see only the top level message.  If a message has
-  ;; several replies or is part of a thread, only show the first message.
-  ;; `gnus-thread-ignore-subject' will ignore the subject and
-  ;; look at 'In-Reply-To:' and 'References:' headers.
-  (setq gnus-thread-hide-subtree t)
-  (setq gnus-thread-ignore-subject t)
-
-  ;; Read HTML mail:
-  ;; You need install the command line web browser 'w3m' and Emacs plugin 'w3m'
-  ;; manually. It specify the html render as w3m so my setup works on all versions
-  ;; of Emacs.
-  ;;
-  ;; Since Emacs 24+, a default html rendering engine `shr' is provided:
-  ;;   - It works out of box without any cli program dependency or setup
-  ;;   - It can render html color
-  ;; So below line is optional.
-  (setq mm-text-html-renderer 'w3m) ; OPTIONAL
-
-  ;; Send email through SMTP
-  (setq message-send-mail-function #'smtpmail-send-it
-        send-mail-function #'smtpmail-send-it
-        smtpmail-queue-dir "~/.mail/queued-mail/"
-        smtpmail-debug-info t)
-
-  (setq smtpmail-stream-type 'starttls
-        smtpmail-starttls-credentials `((,user-mail-address 25 nil nil))
-        smtpmail-default-smtp-server "smtp.office365.com"
-        smtpmail-smtp-server "smtp.office365.com"
-        smtpmail-smtp-service 25)
-
-  ;; http://www.gnu.org/software/emacs/manual/html_node/gnus/_005b9_002e2_005d.html
-  (setq gnus-use-correct-string-widths nil)
-
-  ;; Sample on how to organize mail folders.
-  ;; It's dependent on `gnus-topic-mode'.
-  ;; (eval-after-load 'gnus-topic
-  ;;   '(progn
-  ;;      (setq gnus-message-archive-group '((format-time-string "sent.%Y")))
-  ;;      (setq gnus-server-alist '(("Archive" nnfolder "Archive"
-  ;;                                 (nnfolder-directory "~/.mail/Archive")
-  ;;                                 (nnfolder-active-file "~/.mail/Archive/active")
-  ;;                                 (nnfolder-get-new-mail nil)
-  ;;                                 (nnfolder-inhibit-expiry t))))
-
-  ;;      ;; "Gnus" is the root folder, and there are three mail accounts, "misc", "hotmail", "gmail"
-  ;;      (setq gnus-topic-topology '(("Gnus" visible)
-  ;;                                  ;; (("misc" visible))
-  ;;                                  (("outlook" visible nil nil))))
-
-  ;;      ;; each topic corresponds to a public imap folder
-  ;;      (setq gnus-topic-alist '(("outlook" ; the key of topic
-  ;;                                "nnimap+outlook:Inbox"
-  ;;                                "nnimap+outlook:Drafts"
-  ;;                                "nnimap+outlook:Sent"
-  ;;                                ;;"nnimap+outlook:Junk"
-  ;;                                ;;"nnimap+outlook:Deleted"
-  ;;                                )
-  ;;                               ;; ("misc" ; the key of topic
-  ;;                               ;;  "nnfolder+archive:sent.2018"
-  ;;                               ;;  "nnfolder+archive:sent.2019"
-  ;;                               ;;  "nndraft:drafts")
-  ;;                               ("Gnus")))))
-
-  ;; eye candy
-  (with-eval-after-load "gnus"
-    (copy-face 'font-lock-variable-name-face 'gnus-face-6)
-    (setq gnus-face-6 'gnus-face-6)
-    (copy-face 'font-lock-constant-face 'gnus-face-7)
-    (setq gnus-face-7 'gnus-face-7)
-    (copy-face 'gnus-face-7 'gnus-summary-normal-unread)
-    (copy-face 'font-lock-constant-face 'gnus-face-8)
-    (set-face-foreground 'gnus-face-8 "gray50")
-    (setq gnus-face-8 'gnus-face-8)
-    (copy-face 'font-lock-constant-face 'gnus-face-9)
-    (set-face-foreground 'gnus-face-9 "gray70")
-    (setq gnus-face-9 'gnus-face-9)
-    (setq gnus-summary-make-false-root 'dummy)
-    (setq gnus-summary-make-false-root-always nil)
-
-    (defun oxy-unicode-threads ()
-      (interactive)
-      (setq gnus-summary-dummy-line-format "    %8{│%}   %(%8{│%}                       %7{│%}%) %6{□%}  %S\n"
-            gnus-summary-line-format "%8{%4k│%}%9{%U%R%z%}%8{│%}%*%(%-23,23f%)%7{│%} %6{%B%} %s\n"
-            gnus-sum-thread-tree-indent " "
-            gnus-sum-thread-tree-root "■ "
-            gnus-sum-thread-tree-false-root "□ "
-            gnus-sum-thread-tree-single-indent "▣ "
-            gnus-sum-thread-tree-leaf-with-other "├─▶ "
-            gnus-sum-thread-tree-vertical "│"
-            gnus-sum-thread-tree-single-leaf "└─▶ "))
-
-    (defun oxy-unicode-threads-heavy ()
-      (interactive)
-      (setq gnus-summary-line-format "%8{%4k│%}%9{%U%R%z%}%8{│%}%*%(%-23,23f%)%7{║%} %6{%B%} %s\n"
-            gnus-summary-dummy-line-format "    %8{│%}   %(%8{│%}                       %7{║%}%) %6{┏○%}  %S\n"
-            gnus-sum-thread-tree-indent " "
-            gnus-sum-thread-tree-root "┏● "
-            gnus-sum-thread-tree-false-root " ○ "
-            gnus-sum-thread-tree-single-indent " ● "
-            gnus-sum-thread-tree-leaf-with-other "┣━━❯ "
-            gnus-sum-thread-tree-vertical "┃"
-            gnus-sum-thread-tree-single-leaf "┗━━❯ "))
-
-    (oxy-unicode-threads-heavy)))
 
 (use-package! mentor
   :defer-incrementally t
@@ -2534,16 +2519,36 @@ Return a new buffer or BUF with the code in it."
 (after! smartparens
   (map! :eig [C-S-backspace] #'sp-backward-delete-symbol))
 
+(after! doom-themes
+  (add-to-list 'doom-themes-base-faces
+               '(hl-fill-column-face :inherit 'shadow)))
+
 (after! popup
   (set-popup-rules! '(("^\\*Agda information" :size 0.3 :focus nil)
                       ("\\*intero:global-project::repl" :size 0.3 :focus t)
                       ("\\*haskell-process-log" :size 0.3 :focus nil :quit t)
                       ("\\*test\\*" :size 0.3 :focus t)
                       ("\\*Compile-Log\\*" :size 0.3 :focus nil :quit t)
-                      ("^\\*Org Agenda\\*" :size 0.5 :side bottom)
+                      ("^\\*Org Agenda\\*" :size 0.5 :side 'bottom)
                       ("^\\*eww\\*" :ignore t)
                       ("^\\*cfw:details\\*" :size 0.35)
+                      ("URxvt" :size 0.35 :side 'bottom :focus t :quit nil)
                       ("Helm systemd" :ignore t))))
+
+(when (featurep! :ui workspaces)
+  (map! "C-c C-1" #'+workspace/switch-to-0
+        "C-c C-2" #'+workspace/switch-to-1
+        "C-c C-3" #'+workspace/switch-to-2
+        "C-c C-4" #'+workspace/switch-to-3
+        "C-c C-5" #'+workspace/switch-to-4
+        "C-c C-6" #'+workspace/switch-to-5
+        "C-c C-7" #'+workspace/switch-to-6
+        "C-c C-8" #'+workspace/switch-to-7
+        "C-c C-9" #'+workspace/switch-to-8
+        "C-c C-0" #'+workspace/switch-to-final))
+
+(add-hook! eshell-mode
+  (eldoc-mode -1))
 
 (when (featurep! :editor evil)
   (after! evil-snipe
@@ -2552,15 +2557,29 @@ Return a new buffer or BUF with the code in it."
 
 (add-hook 'evil-insert-state-exit-hook #'expand-abbrev)
 
-(use-package! company-posframe
-  :if (posframe-workable-p)
-  :hook (company-mode . company-posframe-mode)
-  :config
-  (setq company-posframe-quickhelp-delay (when (boundp 'company-quickhelp-delay)
-                                           company-quickhelp-delay)))
+(when (featurep! :editor evil)
+  (when (display-graphic-p)
+    (after! evil-org
+      (map! :map evil-org-mode-map
+            :nv "TAB" nil
+            :nv "<tab>" #'org-cycle)))
+  (after! lispy
+    (map! :map lispy-mode-map
+          [remap pop-tag-mark] #'better-jumper-jump-backward)))
+
+(after! evil
+  (advice-add 'evil-mouse-drag-region :after
+              (defun $fix-miss-drag (&rest _x)
+                (when (region-active-p)
+                  (cl-destructuring-bind (beg . end) (car (region-bounds))
+                    (when (> 4 (- end beg))
+                      (evil-normal-state))))))
+
+  (advice-add 'mouse-set-region :after 'deactivate-mark))
 
 (after! company
-  (setq company-idle-delay 1))
+  (setq company-idle-delay 0.8
+        company-minimum-prefix-length 1))
 
 (use-package! company-quickhelp
   :after company
@@ -2568,6 +2587,138 @@ Return a new buffer or BUF with the code in it."
   (company-quickhelp-margin 15)
   (company-quickhelp-delay nil)
   :hook (company-mode . company-quickhelp-local-mode))
+
+(after! org
+  (defun math-symbol-at-point ()
+    (->> (save-excursion (buffer-substring-no-properties (or (and (re-search-backward "[\s\t\n]" (1+ (point-at-bol)) t)
+                                                                  (progn (forward-char 1)
+                                                                         (point)))
+                                                             (point))
+                                                         (or (and (re-search-forward "[\s\t\n]" (1+ (point-at-eol)) t)
+                                                                  (progn (forward-char -1)
+                                                                         (point)))
+                                                             (point))))
+
+         (string-remove-prefix "$")
+         (string-remove-suffix "$")
+         (string-remove-suffix ",")
+         (string-remove-suffix ".")
+         (string-remove-prefix "(")
+         (string-remove-suffix ")")
+         (string-remove-prefix "[")
+         (string-remove-suffix "]")
+         (string-remove-suffix "\\")
+         (string-remove-suffix ")")
+         (string-remove-suffix "]")
+         ))
+
+  (defun math-symbol-up-to-point ()
+    (let ((pt (point)))
+      (->> (save-excursion (buffer-substring-no-properties (or (and (re-search-backward "[\s\t]" (point-at-bol) t)
+                                                                    (progn (forward-char 1)
+                                                                           (point)))
+                                                               (point))
+                                                           pt))
+           (string-remove-prefix "$")
+           (string-remove-suffix "$")
+           (string-remove-suffix ",")
+           (string-remove-suffix ".")
+           (string-remove-prefix "(")
+           (string-remove-suffix ")")
+           (string-remove-prefix "[")
+           (string-remove-suffix "]")
+           )))
+
+  (defun math/he-try-expand-flx-regexp (str)
+    "Generate regexp for flexible matching of str."
+    (concat (rx word-boundary)
+            str
+            "[^\s\t\n]+"
+            ))
+
+  (defun math/he-try-expand-flx-collect (str)
+    "Find and collect all words that flex-match str, and sort by flx score"
+    (let ((coll)
+          (regexp (math/he-try-expand-flx-regexp str)))
+      (save-excursion
+        (goto-char (point-min))
+        (while (and (search-forward-regexp regexp nil t)
+                    ;; (texmathp)
+                    (lattie--math-p)
+                    )
+          (push (math-symbol-at-point) coll)
+          ))
+      (setq coll (remove "" coll))
+      (sort coll (lambda (a b)
+                   (> (car (flx-score a str))
+                      (car (flx-score b str)))))
+      ))
+
+  (defun math/he-try-expand-flx (old)
+    "Try to complete word using flx matching."
+    (unless old
+      ;; (he-init-string (he-lisp-symbol-beg) (point))
+      (setq he-search-string (math-symbol-up-to-point))
+      (unless (he-string-member he-search-string he-tried-table)
+        (push he-search-string he-tried-table))
+      (setq he-expand-list
+            (unless (equal he-search-string "")
+              (math/he-try-expand-flx-collect he-search-string))))
+    (while (and he-expand-list
+                (he-string-member (car he-expand-list) he-tried-table))
+      (pop he-expand-list))
+    (prog1
+        (null he-expand-list)
+      (if (null he-expand-list)
+          (when old (he-reset-string))
+        (he-substitute-string (pop he-expand-list)))))
+
+
+  (defun hippie-expand-or-company-flx-math ()
+    (interactive)
+    (if (and (eq major-mode 'org-mode)
+             (lattie--math-p))
+        (call-interactively #'company-flx-math)
+      (let ((c)))
+      (call-interactively #'hippie-expand)))
+
+  (global-set-key [remap hippie-expand] #'hippie-expand-or-company-flx-math)
+
+  (defun company-flx-math (command &optional arg &rest ignored)
+    (interactive (company-begin-backend 'company-flx-math))
+    (cl-case command
+      (prefix (when (lattie--math-p)
+                (math-symbol-up-to-point)))
+      (candidates (math/he-try-expand-flx-collect arg))
+      ;; (meta (format "This value is named %s" arg))
+      )))
+
+(after! company
+  (map! :map company-active-map
+        "C-c C-1" (lambda! (company-complete-number 1))
+        "C-c C-2" (lambda! (company-complete-number 2))
+        "C-c C-3" (lambda! (company-complete-number 3))
+        "C-c C-4" (lambda! (company-complete-number 4))
+        "C-c C-5" (lambda! (company-complete-number 5))
+        "C-c C-6" (lambda! (company-complete-number 6))
+        "C-c C-7" (lambda! (company-complete-number 7))
+        "C-c C-8" (lambda! (company-complete-number 8))
+        "C-c C-9" (lambda! (company-complete-number 9))
+        "C-c C-0" (lambda! (company-complete-number 10))
+        ))
+
+(after! texmathp
+  (add-to-list 'texmathp-tex-commands '("tikzcd" env-on))
+  (texmathp-compile))
+
+(after! font-latex
+  (add-to-list 'font-latex-math-environments "tikzcd"))
+
+(after! cdlatex
+  (add-to-list 'cdlatex-math-modify-alist '(?a "\\mathfrak" nil t nil nil))
+  (add-to-list 'cdlatex-math-modify-alist '(?l "\\mathscr" nil t nil nil))
+  (add-to-list 'cdlatex-math-modify-alist '(?w "\\mathbb" nil t nil nil))
+  )
 
 (when (featurep! :completion ivy)
   (advice-add #'helm-mode :around #'ignore)
@@ -2578,7 +2729,7 @@ Return a new buffer or BUF with the code in it."
           "/" #'counsel-org-goto-all)))
 
 (after! ivy
-  (setq +ivy-buffer-preview t))
+  (setq +ivy-buffer-preview 'everything))
 
 (after! ivy
   (define-key ivy-minibuffer-map (kbl-kbd "j" 'control nil 'shift nil) #'ivy-immediate-done))
@@ -2586,6 +2737,19 @@ Return a new buffer or BUF with the code in it."
 (add-hook! 'exwm-init-hook
   (after! ivy-posframe
     (add-to-list 'ivy-posframe-parameters '(parent-frame . nil))))
+
+(after! ivy
+  (defun ivy-magical-space ()
+    "If there is a single ivy candidate and point is at the end of the minibuffer,
+exit with that candidate, otherwise insert SPACE character as usual."
+    (interactive)
+    (call-interactively
+     (if (and (= 1 (length ivy--old-cands))
+              (= (point) (line-end-position)))
+         #'ivy-done
+       #'self-insert-command)))
+
+  (define-key ivy-minibuffer-map (kbd "SPC") 'ivy-magical-space))
 
 (after! dired
   (define-key dired-mode-map (kbl-kbd "@") #'emms-play-dired)
@@ -2642,60 +2806,17 @@ Return a new buffer or BUF with the code in it."
   (defun my-open-calendar ()
     (interactive)
     (require 'calfw-cal)
-    (require 'calfw-ical)
+    ;; (require 'calfw-ical)
     (require 'calfw-org)
+    ;; (require 'calfw-howm)
     (cfw:open-calendar-buffer
      ;; :custom-map cfw:my-cal-map
      :contents-sources
      (list
       (cfw:org-create-source "Green")   ; orgmode source
-      ;; (cfw:howm-create-source "Blue")  ; howm source
-      ;; (cfw:cal-create-source "Orange")  ; diary source
-      ;; (cfw:ical-create-source "Moon" "~/moon.ics" "Gray")  ; ICS source1
-      (cfw:ical-create-source "gcal" "https://calendar.google.com/calendar/ical/luneth1314%40gmail.com/private-a4a90eade91c03181cd1266949a6ede2/basic.ics" "IndianRed") ; google calendar ICS
       )))
 
   (setq +calendar-open-function #'my-open-calendar))
-
-(after! org
-  (after! ox-icalendar
-    (setq org-icalendar-alarm-time 40
-          org-icalendar-include-todo t
-          org-icalendar-use-scheduled '(todo-start event-if-todo event-if-not-todo event-if-todo)
-          org-icalendar-store-UID t))
-
-  (after! org-caldav
-    (load (expand-file-name "caldav" doom-private-dir))
-    (setq org-caldav-files '("~/org/appointments.org" "~/org/email.org"))
-    (when (boundp 'org-caldav-sync-todo)
-      (setq org-caldav-sync-todo t)))
-
-  (defvar org-caldav-sync-timer nil
-    "Timer that `org-caldav-push-timer' used to reschedule itself, or nil.")
-
-  (defun org-caldav-sync-with-delay (secs)
-    (when org-caldav-sync-timer
-      (cancel-timer org-caldav-sync-timer))
-    (setq org-caldav-sync-timer
-          (run-with-idle-timer
-           (* 1 secs) nil 'org-caldav-sync)))
-
-  (add-hook! 'after-save-hook
-    (require 'ox-icalendar)
-    (require 'org-caldav)
-    (when (and (eq major-mode 'org-mode)
-               (member (buffer-file-name)
-                       org-caldav-files))
-      (org-caldav-sync-with-delay 300)))
-
-  ;; (add-hook 'kill-emacs-hook #'org-caldav-sync)
-  )
-
-(defun org-caldav-do-not-display-when-boring-advice (oldfun &rest args)
-  (when org-caldav-sync-result
-    (apply oldfun args)))
-
-(advice-add #'org-caldav-display-sync-results :around #'org-caldav-do-not-display-when-boring-advice)
 
 (use-package! org-make-toc
   :hook (org-mode . org-make-toc-mode)
@@ -2725,11 +2846,180 @@ Return a new buffer or BUF with the code in it."
     (save-buffer)
     (revert-buffer)))
 
-(after! org
-  (require 'secretaria)
-  (secretaria-unknown-time-always-remind-me))
+(add-hook! 'org-mode-hook
+  (eldoc-mode -1))
+
+(after! org-journal
+  (add-to-list 'auto-mode-alist (cons org-journal-file-pattern 'org-journal-mode)))
+
+(after! org-journal
+  (setq org-journal-find-file (lambda (&rest args)
+                                (when (featurep! :ui workspaces)
+                                  (+workspace-switch "Journal" t))
+                                (apply #'find-file args))))
+
+(defvar org-journal-calendar-pre-window-conf nil)
+(map! :leader
+      :desc "Calendar" "njc" (lambda! (require 'org-journal)
+                                      (setq org-journal-calendar-pre-window-conf (current-window-configuration))
+                                      (calendar)))
+(add-hook! 'doom-escape-hook
+  (when (and (featurep 'org-journal)
+             org-journal-calendar-pre-window-conf
+             (get-buffer-window "*Calendar*"))
+    (set-window-configuration org-journal-calendar-pre-window-conf)
+    (setq org-journal-calendar-pre-window-conf nil)))
+
+(after! org-journal
+  (map! :map calendar-mode-map
+        :n "o" #'org-journal-display-entry
+        :n "w" #'org-journal-previous-entry
+        :n "e" #'org-journal-next-entry
+        :n "O" #'org-journal-new-date-entry
+        :n "RET" (lambda! (let* ((_arg current-prefix-arg)
+                                 (event last-nonmenu-event)
+                                 (time (org-journal-calendar-date->time
+                                        (calendar-cursor-to-date t event))))
+                            (set-window-configuration org-journal-calendar-pre-window-conf)
+                            (setq org-journal-calendar-pre-window-conf nil)
+                            (org-journal-read-or-display-entry time nil)))
+        :n "q" (lambda! (call-interactively #'calendar-exit)
+                        (when org-journal-calendar-pre-window-conf
+                          (set-window-configuration org-journal-calendar-pre-window-conf)
+                          (setq org-journal-calendar-pre-window-conf nil))))
+  (map! :map calendar-mode-map
+        :localleader
+        "w" #'org-journal-search-calendar-week
+        "m" #'org-journal-search-calendar-month
+        "y" #'org-journal-search-calendar-year))
+
+(after! org-journal
+  (el-patch-defun org-journal-read-or-display-entry (time &optional noselect)
+    "Read an entry for the TIME and either select the new window when NOSELECT
+is nil or avoid switching when NOSELECT is non-nil."
+    (let* ((org-journal-file (org-journal-get-entry-path time))
+           (buf-exists (get-file-buffer org-journal-file))
+           buf point)
+      (if (and (when (file-exists-p org-journal-file)
+                 (setq buf (find-file-noselect org-journal-file)))
+               ;; If daily continoue with body of if condition
+               (or (org-journal-daily-p)
+                   ;; Search for journal entry
+                   (with-current-buffer buf
+                     (save-mark-and-excursion
+                       (goto-char (point-min))
+                       (setq point (re-search-forward
+                                    (format-time-string " *:CREATED: *%Y%m%d" time) nil t))))))
+          (progn
+            ;; Use `find-file-noselect' instead of `view-file' as it does not respect `auto-mode-alist'
+            (with-current-buffer buf
+              ;; Open file in view-mode if not opened already.
+              (el-patch-swap
+                (unless buf-exists
+                  (view-mode)
+                  (setq view-exit-action 'kill-buffer))
+                nil)
+              (set (make-local-variable 'org-hide-emphasis-markers) t)
+              (unless (org-journal-daily-p)
+                (goto-char point))
+              (org-journal-finalize-view)
+              (setq point (point)))
+            (el-patch-swap (if noselect
+                               (display-buffer buf t)
+                             (funcall org-journal-find-file org-journal-file))
+                           (if noselect
+                               (progn (mapc #'delete-window (cdr (doom-visible-windows)))
+                                      (set-window-buffer (car (doom-visible-windows)) buf))
+                             (funcall org-journal-find-file org-journal-file)))
+            (set-window-point (get-buffer-window (get-file-buffer org-journal-file)) point)
+            buf)
+        (message "No journal entry for this date.")))))
+
+(after! org-journal
+  (set-popup-rule! "^\\*Org-journal search\\*$" :side 'bottom :size 0.3)
+  
+  (el-patch-defun org-journal-search-by-string (str &optional period-start period-end)
+    "Search for a string within a given time interval.
+
+If STR is empty, search for all entries using `org-journal-time-prefix'."
+    (when (time-less-p period-end period-start)
+      (error "Period end cannot be before the start"))
+    (let* ((search-str (if (string= "" str) org-journal-time-prefix str))
+           (files (org-journal-search-build-file-list period-start period-end))
+           (results (org-journal-search-do-search search-str files))
+           (buf (get-buffer-create org-journal-search-buffer))
+           (inhibit-read-only t))
+      (unless (get-buffer-window buf 0)
+        (el-patch-swap (switch-to-buffer buf)
+                       (pop-to-buffer buf)))
+      (with-current-buffer buf
+        (org-journal-search-mode)
+        (erase-buffer)
+        (org-journal-search-print-results str results period-start period-end)
+        (goto-char (point-min))
+        (forward-button 1)
+        (button-activate (button-at (point))))))
+
+  (map! :map org-journal-search-mode-map
+        :n "q" #'kill-this-buffer
+        :n "j" #'org-journal-search-next
+        :n "k" #'org-journal-search-prev))
+
+(add-hook! 'org-journal-mode-hook
+  (mixed-pitch-mode +1)
+  (text-scale-set 2))
 
 (after! org
+  (use-package! secretaria
+    :defer-incrementally t
+    :config
+    (secretaria-unknown-time-always-remind-me)))
+
+(after! secretaria
+  (defvar secretaria-deadline-expiry 30
+    "Amount of days necessary to auto-silence an overdue deadline.")
+
+  (defun secretaria-get-overdue-appt ()
+    (let* ((files (org-agenda-files))
+           (appts)
+           (entries (progn (setf org-agenda-buffer
+                                 (when (buffer-live-p org-agenda-buffer)
+                                   org-agenda-buffer))
+                           (-non-nil
+                            (-flatten (cl-loop for i from 1 to secretaria-deadline-expiry
+                                               collect (cl-loop for file in (org-agenda-files)
+                                                                collect (when-let ((entry (org-agenda-get-day-entries file (calendar-current-date (- i)) :scheduled :deadline)))
+                                                                          (vector (car entry)
+                                                                                  i))))))))
+           (regexp (secretaria--leaders-prepare t))
+           (org-agenda-skip-function '(secretaria--skip-entry-if-done))
+           (org-clock-current-task (or org-clock-current-task "")))
+      (dolist (entry entries)
+        (when (and (string-match-p regexp (get-text-property 0 'extra (aref entry 0)))
+                   (string-empty-p (get-text-property 0 'time (aref entry 0)))
+                   (not (string-equal org-clock-current-task (substring-no-properties (get-text-property 0 'txt (aref entry 0))))))
+          (push (vector (substring-no-properties (get-text-property 0 'txt (aref entry 0)))
+                        (aref entry 1)) appts)))
+      appts))
+
+  (defun secretaria-alert-overdue-unknown-time-appt ()
+    (let ((appts (secretaria-get-overdue-appt)))
+      (dolist (entry appts)
+        (alert (concat "(Task overdue by "
+                       (number-to-string (aref entry 1))
+                       " days)"
+                       ;; ", time unspecified"
+                       )
+               :title (or (aref entry 0) "(no title)")
+               :severity 'high
+               :mode 'org-mode))))
+
+  (defvar secretaria-overdue-unknown-time-reminder-timer nil)
+  (setf secretaria-overdue-unknown-time-reminder-timer
+        (run-at-time (format "%s min" (or secretaria-unknown-time-remind-time 30))
+                     (* (or secretaria-unknown-time-remind-time 30) 60) 'secretaria-alert-overdue-unknown-time-appt)))
+
+(after! secretaria
   (defun my-org-agenda-to-appt ()
     (interactive)
     (setq appt-time-msg-list nil)
@@ -2766,7 +3056,35 @@ Return a new buffer or BUF with the code in it."
                `("a" "Appointment" entry
                  ,(list 'file
                         (concat org-directory "appointments.org"))
-                 "* %?\nSCHEDULED: %^T\n%a\n")))
+                 "* %?\nSCHEDULED: %^T\n%a\n"))
+  (setq org-capture-templates
+        (--remove (equal (car it) "n")
+                  org-capture-templates))
+  ;; (require 'doct)
+  ;; (add-to-list 'org-capture-templates
+  ;;              (doct '(("Note"
+  ;;                       :keys "n"
+  ;;                       :file (lambda () (let ((file (concat default-directory "notes.org")))
+  ;;                                     ;;create if doesn't exist
+  ;;                                     (set-buffer (find-file-noselect file t t))
+  ;;                                     (write-file file) file))
+  ;;                       :template (lambda () (if (y-or-n-p "link?")
+  ;;                                           "* %doct:todo-state %A"
+  ;;                                         "* %doct:todo-state %?"))
+  ;;                       :todo-state "TODO"
+  ;;                       :children (("bug" :keys "b"
+  ;;                                   :headline "Bugs :bug:")
+  ;;                                  ("enhancement" :keys "e"
+  ;;                                   :headline "Ehnancements :enhancement:"
+  ;;                                   :todo-state "IDEA")
+  ;;                                  ("feature" :keys "f"
+  ;;                                   :headline "Features :feature:"
+  ;;                                   :todo-state "IDEA")
+  ;;                                  ("optimization" :keys "o"
+  ;;                                   :headline "Optimizations :optimization:")
+  ;;                                  ("security" :keys "s"
+  ;;                                   :headline "Security :security:"))))))
+  )
 
 (after! org-clock
   (setq org-clock-history-length 23
@@ -2785,6 +3103,16 @@ Return a new buffer or BUF with the code in it."
   (setq org-log-done t)
   (setq org-log-done-with-time t))
 
+(use-package! org-graph-view
+  :commands org-graph-view
+  :config
+  (set-popup-rule! "^\\*org-graph-view\\*$" :size 0.4 :side 'bottom :quit t)
+  (map! :map org-graph-view-map
+        :nie "q" #'bury-buffer))
+
+(after! org-keys
+  (setq org-use-speed-commands t))
+
 (defvar +org-exit-src-code-hook nil
   "Hook run just before exiting a org source block buffer.")
 
@@ -2798,10 +3126,10 @@ Return a new buffer or BUF with the code in it."
 
 (use-package! company-org-block
   :when (featurep! :completion company)
-  :after org
   :functions (company-org-block)
-  :config
-  (set-company-backend! 'org-mode 'company-org-block))
+  :init
+  (after! org
+    (set-company-backend! 'org-mode 'company-org-block)))
 
 (after! org
   (setq org-babel-load-languages '((emacs-lisp . t)
@@ -2967,9 +3295,8 @@ context.  When called with an argument, unconditionally call
   (setq org-cycle-separator-lines 0
         org-catch-invisible-edits 'show-and-error))
 
-(after! org-bullets
-  (setq org-bullets-bullet-list '("Ⅰ" "Ⅱ" "Ⅲ" "Ⅳ" "Ⅴ" "Ⅵ"))
-  (remove-hook 'org-mode-hook #'org-bullets-mode))
+(add-hook! 'org-mode-hook
+           (rainbow-delimiters-mode -1))
 
 (after! org
   (defun org-fold-get-fold-info-file-name ()
@@ -3024,46 +3351,21 @@ context.  When called with an argument, unconditionally call
     )
   )
 
-(use-package! org-sidebar :after org
-              :custom
-              (org-sidebar-side 'left)
-              (org-sidebar-tree-side 'left)
-              :config
-              (map! :map org-mode-map
-                    "<f6>" #'org-sidebar-toggle
-                    "<f7>" #'org-sidebar-tree-toggle))
+(after! org
+  (use-package! org-sidebar
+    :bind (:map org-mode-map
+            ("<f6>" . org-sidebar-toggle)
+            ("<f7>" . org-sidebar-tree-toggle))
+    :custom
+    (org-sidebar-side 'left)
+    (org-sidebar-tree-side 'left)))
 
-(use-package! orly :after org)
+(after! org
+  (use-package! orly
+    :defer-incrementally t))
 
-(use-package! org-autolist :after org
-              :init
-              (add-hook 'org-mode-hook #'org-autolist-mode))
-
-(use-package! org-bookmark-heading :after org
-  :custom
-  (org-bookmark-heading-filename-fn
-   (defun akirak/org-bookmark-heading-filename (path)
-     (let* ((path (expand-file-name path))
-            (project (project-current))
-            (dir (abbreviate-file-name (file-name-directory path)))
-            (filename (file-name-nondirectory path))
-            (root (car-safe (project-roots project))))
-       (if root
-           (f-relative path (f-parent root))
-         path))))
-  (org-bookmark-heading-name-fn
-   (defun akirak/org-bookmark-heading (path heading)
-     (let ((ancestors (org-get-outline-path)))
-       (format "\"%s\" in %s%s"
-               (substring-no-properties
-                (org-link-display-format heading))
-               (akirak/org-bookmark-heading-filename path)
-               (if ancestors
-                   (substring-no-properties
-                    (concat ":" (org-format-outline-path
-                                 (mapcar #'org-link-display-format ancestors)
-                                 nil nil "/")))
-                 ""))))))
+(use-package! org-autolist
+  :hook (org-mode . org-autolist-mode))
 
 (after! org
   (defun org-add-completion-at-point ()
@@ -3086,6 +3388,9 @@ from running."
               :after #'akirak/org-set-created-timestamp)
   (add-hook 'org-capture-mode-hook #'akirak/org-set-created-timestamp))
 
+(add-hook! 'org-mode-hook
+           (turn-on-auto-capitalize-mode))
+
 (after! org
   (use-package! org-noter
     :commands org-noter
@@ -3094,133 +3399,1116 @@ from running."
           org-noter-property-note-location "INTERLEAVE_PAGE_NOTE")
     (setq org-noter-notes-window-location 'horizontal-split
           org-noter-always-create-frame nil
-          org-noter-kill-frame-at-session-end nil))
+          org-noter-kill-frame-at-session-end nil
+          org-noter-auto-save-last-location t))
   ;; (setq org-noter-default-notes-file-names
   ;;       '("elements.org" "Conceptual.org" "comprehension.org"))
   )
 
-(use-package! lozenge
-  :after org
-  :config
-  (lozenge-org-export-enable)
-  (global-set-key (kbl-kbd "d" 'control 'meta nil 'super) #'lozenge-insert-lozenge))
-
-;; http://kitchingroup.cheme.cmu.edu/blog/2015/10/09/Automatic-latex-image-toggling-when-cursor-is-on-a-fragment/
-;; when the point is on a latex image, toggle it to latex code
-;; else display the corresponding latex image
-
-;;; bokwoon additions
-;; According to the comments, as of the latest org-mode you have to replace all 'org-latex-fragment-image-overlays' with (org--list-latex-overlays)
-;; However the function (org--list-latex-overlays) seems to have been removed (at least in my version of emacs) so I found a webpage online mentioning this function declaration (https://code.orgmode.org/bzg/org-mode/commit/cadfbbe8af9b978a02f48ee70bf6c855fdd3e19d) and copied it into this file
-
-;; 2 alternative scripts
-;; http://slumpy.org/blog/2017-02-01-automatic-latex-preview-in-org-mode/
-;; https://gist.github.com/cvcore/760008a4dfb2eadf42afdc9cf01ef979
-
-;; This function definition was obtained from https://code.orgmode.org/bzg/org-mode/commit/cadfbbe8af9b978a02f48ee70bf6c855fdd3e19d
-;; The script needs this function to work
 (after! org
-  (defun org--list-latex-overlays (&optional beg end)
-    "List all Org LaTeX overlays in current buffer.
-Limit to overlays between BEG and END when those are provided."
-    (org-remove-if-not
-     (lambda (o) (eq (overlay-get o 'org-overlay-type) 'org-latex-overlay))
-     (overlays-in (or beg (point-min)) (or end (point-max)))))
-
-  (defvar org-latex-fragment-last nil
-    "Holds last fragment/environment you were on.")
-
-  (defun org-latex-fragment-toggle ()
-    "Toggle a latex fragment image "
-    (interactive)
-    (and (eq 'org-mode major-mode)
-         (let* ((el (org-element-context))
-                (el-type (car el)))
-           (cond
-            ;; were on a fragment and now on a new fragment
-            ((and
-              ;; fragment we were on
-              org-latex-fragment-last
-              ;; and are on a fragment now
-              (or
-               (eq 'latex-fragment el-type)
-               (eq 'latex-environment el-type))
-              ;; but not on the last one this is a little tricky. as you edit the
-              ;; fragment, it is not equal to the last one. We use the begin
-              ;; property which is less likely to change for the comparison.
-              (not (= (org-element-property :begin el)
-                      (org-element-property :begin org-latex-fragment-last))))
-             ;; go back to last one and put image back
-             (save-excursion
-               (goto-char (org-element-property :begin org-latex-fragment-last))
-               (org-preview-latex-fragment))
-             ;; now remove current image
-             (goto-char (org-element-property :begin el))
-             (let ((ov (cl-loop for ov in (org--list-latex-overlays)
-                                if
-                                (and
-                                 (<= (overlay-start ov) (point))
-                                 (>= (overlay-end ov) (point)))
-                                return ov)))
-               (when ov
-                 (delete-overlay ov)))
-             ;; and save new fragment
-             (setq org-latex-fragment-last el))
-
-            ;; were on a fragment and now are not on a fragment
-            ((and
-              ;; not on a fragment now
-              (not (or
-                    (eq 'latex-fragment el-type)
-                    (eq 'latex-environment el-type)))
-              ;; but we were on one
-              org-latex-fragment-last)
-             ;; put image back on
-             (save-excursion
-               (goto-char (org-element-property :begin org-latex-fragment-last))
-               (org-preview-latex-fragment))
-             ;; unset last fragment
-             (setq org-latex-fragment-last nil))
-
-            ;; were not on a fragment, and now are
-            ((and
-              ;; we were not one one
-              (not org-latex-fragment-last)
-              ;; but now we are
-              (or
-               (eq 'latex-fragment el-type)
-               (eq 'latex-environment el-type)))
-             (goto-char (org-element-property :begin el))
-             ;; remove image
-             (let ((ov (cl-loop for ov in (org--list-latex-overlays)
-                                if
-                                (and
-                                 (<= (overlay-start ov) (point))
-                                 (>= (overlay-end ov) (point)))
-                                return ov)))
-               (when ov
-                 (delete-overlay ov)))
-             (setq org-latex-fragment-last el))))))
-
-
-  (add-hook 'post-command-hook 'org-latex-fragment-toggle)
-
-  ;; (add-hook 'org-mode-hook
-  ;; 	  (add-hook 'post-command-hook 'org-latex-fragment-toggle))
-
-  (defun org-latex-auto-on ()
-    (interactive)
-    (add-hook 'org-mode-hook
-	            (add-hook 'post-command-hook 'org-latex-fragment-toggle)))
-
-  (defun org-latex-auto-off ()
-    (interactive)
-    (add-hook 'org-mode-hook
-	            (remove-hook 'post-command-hook 'org-latex-fragment-toggle))))
+  (use-package! lozenge
+    :defer-incrementally t
+    :config
+    (lozenge-org-export-enable)
+    (global-set-key (kbl-kbd "d" 'control 'meta nil 'super) #'lozenge-insert-lozenge)))
 
 (after! org
-  (require 'org-num)
-  (add-hook 'org-mode-hook #'org-num-mode))
+  (defun my-company-auctex-prefix (regexp)
+    "Returns the prefix for matching given REGEXP."
+    (and (or (derived-mode-p 'latex-mode)
+             (and (derived-mode-p 'org-mode)
+                  (lattie--math-p)))
+         (when (looking-back regexp)
+           (match-string-no-properties 1))))
+
+  (advice-add #'company-auctex-prefix :override #'my-company-auctex-prefix)
+
+  (set-company-backend! 'org-mode 'company-auctex-symbols))
+
+(after! org
+  (add-to-list 'org-latex-packages-alist
+               '("" "amsmath"))
+  (add-to-list 'org-latex-packages-alist
+               '("" "amssymb"))
+  (add-to-list 'org-latex-packages-alist
+               '("" "mathrsfs"))
+  ;; Has \coloneqq
+  (add-to-list 'org-latex-packages-alist
+               '("" "mathtools"))
+  (add-to-list 'org-latex-packages-alist
+               '("" "tikz"))
+  (add-to-list 'org-latex-packages-alist
+               '("" "tikz-cd")))
+
+(after! org
+  (setq org-pretty-entities-include-sub-superscripts nil))
+
+(after! org
+  (setq org-latex-pdf-process '("latexmk -pdflatex='lualatex -shell-escape -interaction nonstopmode' -pdf -f  %f")
+        org-preview-latex-default-process 'dvisvgm))
+
+(add-hook 'org-mode-hook #'org-cdlatex-mode)
+
+(add-transient-hook! 'org-cdlatex-mode-hook
+  (map! :map org-cdlatex-mode-map
+        "]" #'lattie-close-bracket
+        "[" #'lattie-open-bracket
+        "(" #'lattie-open-paren
+        "n" #'special-lattie-down
+        "-" #'special-lattie-punctuation
+        "SPC" #'special-lattie-space
+        "." #'special-lattie-space
+        "," #'special-lattie-space
+        "+" #'lattie-insert-dollar
+        "e" #'special-lattie-up
+        "m" #'special-lattie-backward
+        "i" #'special-lattie-forward
+        "t" #'special-lattie-flow
+        "c" #'special-lattie-toggle-latex-fragment
+        "$" #'special-lattie-dollar
+        "{" #'special-lattie-open-brace
+        "}" #'special-lattie-close-brace
+        "f" #'special-lattie-compile
+        "*" #'special-lattie-asterisk
+        "`" #'special-lattie-grave
+        "0" #'special-lattie-digit-or-bol
+        "1" #'special-lattie-digit
+        ;; "^" #'special-lattie-back-to-heading
+        "^" #'org-cdlatex-underscore-caret
+        "2" #'special-lattie-digit
+        "3" #'special-lattie-digit
+        "4" #'special-lattie-digit
+        "5" #'special-lattie-digit
+        "6" #'special-lattie-digit
+        "7" #'special-lattie-digit
+        "8" #'special-lattie-digit
+        "9" #'special-lattie-digit
+        ;; "=" #'special-lattie-equals
+        ;; "/" #'special-lattie-slash
+        [return] #'special-lattie-newline-and-indent
+        "DEL" #'lattie-delete-backward
+        [remap backward-kill-word] #'backward-kill-word
+        [remap org-self-insert-command] #'lattie-self-insert-command)
+
+  (after! org
+    (require 'org-element)
+    (require 'texmathp)
+    (require 'cdlatex)
+    (require 'typo)
+
+    (when (not (featurep 'lispy))
+      (defmacro lispy-dotimes (n &rest bodyform)
+        "Execute N times the BODYFORM unless an error is signaled.
+Return nil if couldn't execute BODYFORM at least once.
+Otherwise return the amount of times executed."
+        (declare (indent 1)
+                 (debug (form body)))
+        `(let ((i 0))
+           (catch 'result
+             (condition-case e
+                 (progn
+                   (while (<= (cl-incf i) ,n)
+                     ,@bodyform)
+                   ,n)
+               (error
+                (when (eq (car e) 'buffer-read-only)
+                  (message "Buffer is read-only: %s" (current-buffer)))
+                (cl-decf i)
+                (and (> i 0) i)))))))
+
+    (defvar lattie-dollar-regexp "[^\\]\\$")
+    (defvar lattie-dollar-regexp-for-looking-at "\\$")
+
+    (defvar lattie-closing-math-regexp
+      (concat lattie-dollar-regexp
+              "\\|[^\\]\\\\\\(\]\\|\)\\|end\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-closing-math-regexp-for-looking-at
+      (concat lattie-dollar-regexp-for-looking-at
+              "\\|\\\\\\(\]\\|\)\\|end\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-opening-math-regexp
+      (concat lattie-dollar-regexp
+              "\\|[^\\]\\\\\\(\\\[\\|\(\\|begin\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-opening-math-regexp-for-looking-at
+      (concat lattie-dollar-regexp-for-looking-at
+              "\\|\\\\\\(\\\[\\|\(\\|begin\{[^\\s$\\s-]+\}\\)"))
+
+    (defvar lattie-closing-math-regexp-with-whitespace
+      (concat "\\s-*"
+              lattie-dollar-regexp
+              "\\|[^\\]\\\\\\(\\s-*\]\\|\\s-*\)\\|\\s-*end\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-closing-math-regexp-with-whitespace-for-looking-at
+      (concat "\\s-*"
+              lattie-dollar-regexp-for-looking-at
+              "\\|[^\\]\\\\\\(\\s-*\]\\|\\s-*\)\\|\\s-*end\{[^\\s$\\s-]+\}\\)"))
+
+    (defvar lattie-opening-math-regexp-with-whitespace
+      (concat lattie-dollar-regexp
+              "\\s-*\\|[^\\]\\\\\\(\\\[\\s-*\\|\(\\s-*\\|begin\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-opening-math-regexp-with-whitespace-for-looking-at
+      (concat lattie-dollar-regexp-for-looking-at
+              "\\s-*\\|\\\\\\(\\\[\\s-*\\|\(\\s-*\\|begin\{[^\\s$\\s-]+\}\\)"))
+
+    (defvar lattie-closing-or-environment-math-regexp
+      (concat lattie-dollar-regexp
+              "\\|[^\\]\\\\\\(\]\\|\)\\|end\{[^\\s$\\s-]+\}\\|begin\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-closing-or-environment-math-regexp-for-looking-at
+      (concat lattie-dollar-regexp-for-looking-at
+              "\\|\\\\\\(\]\\|\)\\|end\{[^\\s$\\s-]+\}\\|begin\{[^\\s$\\s-]+\}\\)"))
+
+    (defvar lattie-opening-or-environment-math-regexp
+      (concat lattie-dollar-regexp
+              "\\|[^\\]\\\\\\(\\[\\|\(\\|end\{[^\\s$\\s-]+\}\\|begin\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-opening-or-environment-math-regexp-for-looking-at
+      (concat lattie-dollar-regexp-for-looking-at
+              "\\|\\\\\\(\\[\\|\(\\|end\{[^\\s$\\s-]+\}\\|begin\{[^\\s$\\s-]+\}\\)"))
+
+    (defvar lattie-closing-or-opening-math-regexp
+      (concat lattie-dollar-regexp
+              "\\|[^\\]\\\\\\(\]\\|\)\\|\[\\|\(\\|end\{[^\\s$\\s-]+\}\\|begin\{[^\\s$\\s-]+\}\\)"))
+    (defvar lattie-closing-or-opening-math-regexp
+      (concat lattie-dollar-regexp-for-looking-at
+              "\\|\\\\\\(\]\\|\)\\|\[\\|\(\\|end\{[^\\s$\\s-]+\}\\|begin\{[^\\s$\\s-]+\}\\)"))
+
+    (defvar lattie-closing-environment-regexp "[^\\]\\\\end\{\\([^\\s$\\s-]+\\)\}")
+    (defvar lattie-closing-environment-regexp-for-looking-at "\\\\end\{\\([^\\s$\\s-]+\\)\}")
+    (defvar lattie-opening-environment-regexp "[^\\]\\\\begin\{\\([^\\s$\\s-]+\\)\}")
+    (defvar lattie-opening-environment-regexp-for-looking-at "\\\\begin\{\\([^\\s$\\s-]+\\)\}")
+    (defvar lattie-open-or-close-environment-regexp "[^\\]\\\\end\{[^\\s$\\s-]+\}\\|[^\\]\\\\begin\{[^\\s$\\s-]+\}")
+    (defvar lattie-open-or-close-environment-regexp-for-looking-at "\\\\end\{[^\\s$\\s-]+\}\\|\\\\begin\{[^\\s$\\s-]+\}")
+
+    (defvar lattie-debug nil)
+    (defvar lattie--left-matched? nil)
+
+    (defun lattie--math-p (&optional pt)
+      (let* ((pt-old (or pt (point)))
+             (pt-new (if (and (eq (char-after pt-old) ?\n)
+                              (not (eq (char-before (1- pt-old)) ?$)))
+                         (1- pt-old)
+                       pt-old))
+             (face-at-pt (get-text-property (or pt-new (point)) 'face)))
+        (or (and (listp face-at-pt)
+                 (or (memq 'org-latex-and-related face-at-pt)
+                     (memq 'font-latex-math-face face-at-pt)
+                     (memq 'font-latex-sedate-face face-at-pt)
+                     (memq 'font-function-function-name-face face-at-pt)
+                     (memq 'tex-math face-at-pt)
+                     (memq 'endless/unimportant-latex-face face-at-pt)
+                     ;; (memq 'rainbow-delimiters-depth-1-face face-at-pt)
+                     ;; (memq 'rainbow-delimiters-depth-2-face face-at-pt)
+                     ;; (memq 'rainbow-delimiters-depth-3-face face-at-pt)
+                     ;; (memq 'rainbow-delimiters-depth-4-face face-at-pt)
+                     ))
+            (eq face-at-pt 'tex-math))))
+
+    (defun lattie--left-p ()
+      (or (and (looking-at lattie-opening-math-regexp-for-looking-at)
+               (or (not (eq (char-after) ?$))
+                   (eq (char-before) ?\n)
+                   (lattie--at-left-side-of-opening-expression?))
+               (or (not (eq (char-after) ?$))
+                   (eq (char-before) ?\n)
+                   (not (looking-back lattie-closing-math-regexp (point-at-bol) nil))))
+          (looking-at lattie-open-or-close-environment-regexp-for-looking-at)))
+
+    (defun lattie--right-p ()
+      (or (and (looking-back lattie-closing-math-regexp (point-at-bol) nil)
+               (or (not (eq (char-before) ?$))
+                   (eq (char-after) ?\n)
+                   (lattie--at-right-side-of-closing-expression?))
+               (or (not (eq (char-before) ?$))
+                   (eq (char-after) ?\n)
+                   (not (looking-at lattie-opening-math-regexp-for-looking-at))))
+          (looking-back lattie-open-or-close-environment-regexp (point-min) nil)))
+
+    (defmacro lattie-stay-special (&rest forms)
+      `(let ((pt (point)))
+         ,@forms
+         (while (and (not (eq (point) pt))
+                     (or (eq (char-before) ?\\)
+                         ;; (looking-back "\\\\]" (- (point) 3))
+                         (invisible-p (point))
+                         (looking-back "\\\\\\\\\\\(\)\\|\]\\)" (- (point) 3))))
+           ,@forms
+           (setq pt (point)))
+         (when (or (eq (point) ,(point))
+                   (eq (char-before) ?\\)
+                   ;; (looking-back "\\\\)" (- (point) 3))
+                   ;; (looking-back "\\\\]" (- (point) 3))
+                   (invisible-p (point))
+                   (looking-back "\\\\\\\\\\\(\)\\|\]\\)" (- (point) 3)))
+           (goto-char ,(point)))))
+
+    (defun lattie--at-left-side-of-opening-expression? ()
+      (save-excursion
+        (not (lattie--math-p
+              (progn (re-search-backward "[^\\s.]" nil t)
+                     ;; (re-search-backward "[^\\sw]" nil t)
+                     (while (eq (char-before) ?\\)
+                       (forward-char -1))
+                     (point))))))
+
+    (defun lattie--at-right-side-of-closing-expression? ()
+      (save-excursion
+        (and (not (and (eq (char-after) ?$)
+                       (eq (- (point-max) (point))
+                           1)))
+             (or (and (eq (char-before) ?$)
+                      (eq (char-after) ?\n))
+                 (not (lattie--math-p
+                       (progn (unless (or (looking-at "[^\s.\$]+\\$")
+                                          (and (eq (char-before) ?$)
+                                               (eq (char-after) ?$)))
+                                (re-search-forward "[^\\s.]" nil t))
+                              (while (eq (char-before) ?\\)
+                                (forward-char -1))
+                              (point))))))))
+
+    (defun lattie--special-p ()
+      (or (lattie--left-p)
+          (lattie--right-p)))
+
+    (defun lattie--get-forward-limit ()
+      (save-excursion
+        (if (looking-back lattie-opening-environment-regexp (1- (point-at-bol)) nil)
+            (goto-char (match-beginning 0))
+          (forward-char -1))
+        ;; (message "initial: %s %s" (match-string 0) (match-string 1))
+        (let* ((limit (save-excursion (re-search-forward lattie-closing-math-regexp nil t)))
+               (match (match-data))
+               (op (re-search-forward lattie-opening-environment-regexp limit t))
+               (new-limit? (and (match-string-no-properties 1)
+                                ;; (message "%s" (match-string-no-properties 1))
+                                (save-excursion
+                                  (re-search-forward
+                                   (concat "[^\\]\\\\end{\\("
+                                           (regexp-quote (match-string-no-properties 1))
+                                           "\\)}")
+                                   nil
+                                   t)))))
+          (unless new-limit? (set-match-data match))
+          ;; (message "limits: %s %s %s %s" limit new-limit? op (match-string-no-properties 1))
+          (when (match-string-no-properties 1)
+            (while (and (integerp op)
+                        (integerp new-limit?)
+                        (integerp limit)
+                        (< op limit)
+                        (< limit new-limit?))
+              (setq limit new-limit?
+                    match (match-data)
+                    op (re-search-forward lattie-opening-environment-regexp limit t)
+                    new-limit? (save-excursion
+                                 (re-search-forward
+                                  (concat "[^\\]\\\\end{\\("
+                                          (regexp-quote (match-string-no-properties 1))
+                                          "\\)}")
+                                  nil
+                                  t)))
+              ;; (message "new limit: %s %s %s" limit new-limit? op)
+              ))
+          (set-match-data match)
+          ;; (message "final limit: %s %s" limit (match-string 0))
+          limit)))
+
+    ;; (defun lattie--get-backward-limit ()
+    ;;   (save-excursion
+    ;;     (if (looking-at lattie-closing-environment-regexp-for-looking-at)
+    ;;         (goto-char (match-end 0))
+    ;;       (forward-char -1))
+    ;;     ;; (message "initial: %s %s" (match-string 0) (match-string 1))
+    ;;     (let* ((limit (save-excursion (re-search-backward lattie-opening-math-regexp nil t)))
+    ;;            (match (match-data))
+    ;;            (cl (re-search-backward lattie-closing-environment-regexp limit t))
+    ;;            (new-limit? (and (match-string-no-properties 1)
+    ;;                             ;; (message "%s" (match-string-no-properties 1))
+    ;;                             (save-match-data
+    ;;                               (re-search-backward
+    ;;                                (concat "[^\\]\\\\begin{"
+    ;;                                        (regexp-quote (match-string-no-properties 1))
+    ;;                                        "}")
+    ;;                                nil
+    ;;                                t)))))
+    ;;       ;; (message "limits: %s %s %s %s" limit new-limit? op (match-string-no-properties 1))
+    ;;       (when (match-string-no-properties 1)
+    ;;         (while (and (integerp cl)
+    ;;                     (integerp new-limit?)
+    ;;                     (integerp limit)
+    ;;                     (> op limit)
+    ;;                     (> limit new-limit?))
+    ;;           (setq limit new-limit?
+    ;;                 match (match-data)
+    ;;                 op (re-search-backward lattie-closing-environment-regexp limit t)
+    ;;                 new-limit? (save-excursion
+    ;;                              (re-search-backward
+    ;;                               (concat "[^\\]\\\\begin{"
+    ;;                                       (regexp-quote (match-string-no-properties 1))
+    ;;                                       "}")
+    ;;                               nil
+    ;;                               t)))
+    ;;           ;; (message "new limit: %s %s %s" limit new-limit? op)
+    ;;           ))
+    ;;       (set-match-data match)
+    ;;       limit)))
+
+    (defun lattie-forward (arg)
+      (interactive "p")
+      (lispy-dotimes arg
+        (lattie--trim-whitespace-right)
+        (lattie--get-forward-limit)
+        (forward-char -1)
+        (if (eq (point)
+                (progn (cond ((string-prefix-p "\\end{" (substring-no-properties (match-string-no-properties 0) 1 nil))
+                              (goto-char (match-end 0)))
+                             ((re-search-forward lattie-closing-math-regexp nil t)
+                              (when (not (lattie--right-p))
+                                (re-search-forward lattie-closing-math-regexp nil t)))
+                             ((eq (char-after) ?\})
+                              (forward-char 1)))
+                       (point)))
+            (progn (lattie--trim-whitespace-right)
+                   (forward-char 1))
+          (lattie--trim-whitespace-right))))
+
+    (defmacro lattie-dotimes (n &rest forms)
+      `(dotimes (_i ,n)
+         ,@forms))
+
+    (defun lattie-backward (arg)
+      (interactive "p")
+      (lispy-dotimes arg
+        (if (looking-back lattie-closing-environment-regexp (1- (point-at-bol)) nil)
+            (re-search-backward (concat "\\\\begin\{"
+                                        (regexp-quote (match-string-no-properties 1))
+                                        "}")
+                                nil
+                                t)
+          (lattie-stay-special (re-search-backward lattie-opening-math-regexp nil t)
+                               (forward-char 1))
+          (when (not (lattie--left-p))
+            (lattie-stay-special
+             (re-search-backward lattie-opening-math-regexp nil t)
+             (forward-char 1))))
+        ;; (lattie--trim-whitespace-left)
+        ))
+
+    (defun lattie--trim-whitespace-right ()
+      (cond ((eq (char-before) ?$)
+             (forward-char -1)
+             (let* ((end (point))
+                    (offset (skip-syntax-backward "\\s-"))
+                    (s (buffer-substring-no-properties (+ end offset) end)))
+               (unless (progn (delete-region (+ end offset) end)
+                              (forward-char 1)
+                              (prog1 (lattie--at-right-side-of-closing-expression?)
+                                (forward-char -1)))
+                 (insert s)))
+             (forward-char 1))))
+
+    ;; (defun lattie--trim-whitespace-left ()
+    ;;   (cond ((eq (char-after) ?$)
+    ;;          (forward-char 1)
+    ;;          (let* ((beg (point))
+    ;;                 (offset (skip-syntax-forward "\\s-"))
+    ;;                 (s (buffer-substring-no-properties (+ beg offset) beg)))
+    ;;            (unless (progn (delete-region beg (+ beg offset))
+    ;;                           (lattie--at-left-side-of-opening-expression?))
+    ;;              (insert s)))
+    ;;          (forward-char -1))))
+
+    (defun lattie--debug (&rest args)
+      (when lattie-debug
+        (apply #'message args)))
+
+    (defun lattie-right (arg)
+      "FIXME Maybe I should just remove this."
+      (skip-syntax-backward "\\s-" (point-at-eol))
+      (lispy-dotimes arg
+        (unless (lattie--at-right-side-of-closing-expression?)
+          (cond ((looking-at lattie-opening-environment-regexp-for-looking-at)
+                 (goto-char (match-end 0)))
+                (t (lattie-forward 1))))))
+
+    (defun lattie-left (arg)
+      "FIXME Maybe I should just remove this"
+      (let ((pt (point)))
+        (skip-syntax-backward "\\s-" (point-at-bol))
+        (when (eq (point)
+                  (progn (lispy-dotimes arg
+                           (unless (and (lattie--at-left-side-of-opening-expression?)
+                                        (not (looking-at lattie-open-or-close-environment-regexp-for-looking-at)))
+                             (cond ((looking-at lattie-open-or-close-environment-regexp-for-looking-at)
+                                    (goto-char (match-end 0))
+                                    (lattie-backward 1))
+                                   ((looking-back lattie-closing-environment-regexp (1- (point-at-bol)) t)
+                                    (goto-char (1+ (match-beginning 0))))
+                                   (t (lattie-backward 1)))))
+                         (point)))
+          (goto-char pt))))
+
+    (defun lattie-up (arg)
+      (let ((data nil)
+            (pt (point)))
+        (lispy-dotimes arg
+          (lattie--special-p)
+          (cond ((or (string-prefix-p "\\end\{" (match-string-no-properties 0))
+                     (string-prefix-p "\\begin\{" (match-string-no-properties 0)))
+                 (if (looking-at lattie-open-or-close-environment-regexp-for-looking-at)
+                     (progn (re-search-backward lattie-closing-or-environment-math-regexp nil t)
+                            (forward-char 1)
+                            (when (string-suffix-p "$" (match-string-no-properties 0))
+                              (re-search-backward lattie-opening-or-environment-math-regexp nil t)
+                              (forward-char 1)))
+                   (re-search-backward lattie-closing-or-environment-math-regexp nil t)
+                   (re-search-backward lattie-closing-or-environment-math-regexp nil t)
+                   (when (string-suffix-p "$" (match-string-no-properties 0))
+                     (re-search-forward lattie-closing-math-regexp nil t))
+                   (goto-char (match-end 0))))
+                ((eq (char-before) ?$)
+                 (save-excursion (re-search-backward lattie-closing-math-regexp nil t))
+                 (when (string-suffix-p "$" (match-string-no-properties 0))
+                   (progn (goto-char (1+ (match-beginning 0)))
+                          (setq data (match-data))
+                          (re-search-backward lattie-closing-math-regexp nil t)
+                          (re-search-backward lattie-closing-math-regexp nil t)))
+                 (goto-char (match-end 0))
+                 (when (and (eq (char-before) ?$)
+                            (not (lattie--right-p)))
+                   (set-match-data data)
+                   (goto-char (match-end 0))))
+                ((lattie--right-p)
+                 (goto-char (1+ (match-beginning 0)))
+                 (re-search-backward lattie-closing-or-environment-math-regexp nil t)
+                 (goto-char (match-end 0)))
+                ((lattie--left-p)
+                 (re-search-backward lattie-opening-or-environment-math-regexp nil t)
+                 (unless (equal (match-string-no-properties 0) "\n")
+                   (goto-char (1+ (match-beginning 0))))
+                 (when (string-suffix-p "$" (match-string-no-properties 0))
+                   (progn (goto-char (match-beginning 0))
+                          (re-search-backward lattie-closing-or-environment-math-regexp nil t)
+                          (forward-char 1))))))
+        (when (< pt (point))
+          (goto-char pt))))
+
+    (defun lattie-down (arg)
+      (let ((data nil)
+            (pt (point)))
+        (lispy-dotimes arg
+          (lattie--special-p)
+          (cond ((or (string-match-p "\\\\end\{" (match-string-no-properties 0))
+                     (string-match-p "\\\\begin\{" (match-string-no-properties 0)))
+                 (if (looking-at lattie-open-or-close-environment-regexp-for-looking-at)
+                     (progn (goto-char (match-end 0))
+                            (re-search-forward lattie-closing-or-environment-math-regexp nil t)
+                            (goto-char (1+ (match-beginning 0))))
+                   (goto-char (match-end 0))
+                   ;; I am currently at the right side of \\begin/end{...} statement
+                   (re-search-forward lattie-open-or-close-environment-regexp nil t)
+                   (when (string-suffix-p "$" (match-string-no-properties 0))
+                     (progn (goto-char (match-end 0))
+                            (setq data (match-data))
+                            (re-search-forward lattie-closing-math-regexp nil t)))))
+                ((eq (char-before) ?$)
+                 (save-excursion (re-search-forward lattie-closing-or-opening-math-regexp nil t))
+                 (setq data (match-data))
+                 (when (string-suffix-p "$" (match-string-no-properties 0))
+                   (progn (goto-char (match-end 0))
+                          (setq data (match-data))
+                          (re-search-forward lattie-closing-math-regexp nil t)))
+                 (goto-char (match-end 0))
+                 (when (and (eq (char-before) ?$)
+                            (not (lattie--right-p)))
+                   (set-match-data data)
+                   (goto-char (match-end 0))))
+                ((eq (char-after) ?$)
+                 (forward-char 1)
+                 (re-search-forward lattie-opening-or-environment-math-regexp nil t)
+                 (when (string-match-p "\$$" (match-string-no-properties 0))
+                   (progn (goto-char (match-end 0))
+                          (re-search-forward lattie-opening-or-environment-math-regexp nil t)
+                          (goto-char (1+ (match-beginning 0)))))
+                 )
+                ((lattie--right-p)
+                 (goto-char (match-end 0))
+                 (re-search-forward lattie-closing-or-environment-math-regexp nil t)
+                 (when (string-suffix-p "$" (match-string-no-properties 0))
+                   (progn (goto-char (match-end 0))
+                          (setq data (match-data))
+                          (re-search-forward lattie-opening-or-environment-math-regexp nil t))))
+                ((lattie--left-p)
+                 (goto-char (match-end 0))
+                 (re-search-forward lattie-opening-or-environment-math-regexp nil t)
+                 (goto-char (match-beginning 0)))))
+        (when (<= (1- (point)) pt)
+          (goto-char pt))))
+
+    ;; (defun lattie-up (arg)
+    ;;   (interactive "p")
+    ;;   (cond ((lattie--left-p)
+    ;;          (lattie-backward arg)
+    ;;          (lattie-left 1))
+    ;;         ((lattie--right-p)
+    ;;          (lattie-backward (1+ arg))
+    ;;          (lattie-right 1))))
+
+    (defun lattie-self-insert-command (arg)
+      (interactive "p")
+      (when (looking-back lattie-closing-math-regexp (point-at-bol))
+        (put-text-property (1- (point))
+                           (point)
+                           'font-lock-face
+                           nil))
+      (if (memq major-mode '(org-mode org-journal-mode))
+          (org-self-insert-command arg)
+        (self-insert-command arg)))
+
+    (defun special-lattie-grave ()
+      (interactive)
+      (if (or (lattie--math-p)
+              (looking-back ",[a-zA-Z0-9]*" (point-at-bol) nil))
+          (cdlatex-math-symbol)
+        (typo-cycle-left-single-quotation-mark 1)))
+
+    (defun special-lattie-backward (arg)
+      (interactive "p")
+      (if (lattie--special-p)
+          (lattie-backward arg)
+        (lattie-self-insert-command arg)))
+
+    (defun special-lattie-up (arg)
+      (interactive "p")
+      (cond ((lattie--special-p)
+             (lattie-stay-special (lattie-up arg)))
+            ;; ((and (eq major-mode 'org-mode)
+            ;;       (org-at-heading-p))
+            ;;  (org-next-visible-heading arg))
+            ;; ((and (eq major-mode 'org-mode)
+            ;;       (org-at-item-p))
+            ;;  (lispy-dotimes arg (org-next-item)))
+            (t (lattie-self-insert-command arg))))
+
+    (defun special-lattie-down (arg)
+      (interactive "p")
+      (cond ((lattie--special-p)
+             (lattie-stay-special (lattie-down arg)))
+            ;; ((and (eq major-mode 'org-mode)
+            ;;       (org-at-heading-p))
+            ;;  (org-next-visible-heading arg))
+            ;; ((and (eq major-mode 'org-mode)
+            ;;       (org-at-item-p))
+            ;;  (lispy-dotimes arg (org-next-item)))
+            (t (lattie-self-insert-command arg))))
+
+    (defun special-lattie-left (arg)
+      (interactive "p")
+      (cond ((lattie--special-p)
+             (lattie-left arg))
+            ;; ((and (eq major-mode 'org-mode)
+            ;;       (org-at-heading-or-item-p))
+            ;;  (org-up-element))
+            (t (lattie-self-insert-command arg))))
+
+    (defun special-lattie-right (arg)
+      (interactive "p")
+      (cond ((lattie--special-p)
+             (lattie-right arg))
+            ;; ((and (eq major-mode 'org-mode)
+            ;;       (org-at-heading-or-item-p))
+            ;;  (org-down-element))
+            (t (lattie-self-insert-command arg))))
+
+    (defun lattie-delete-backward (arg)
+      (interactive "p")
+      (cond (mark-active
+             (kill-region (mark) (point)))
+            ((and (eq (char-after) ?$)
+                  (eq (char-before) ?$))
+             (delete-char 1)
+             (delete-char -1))
+            ((and (looking-at "\\(\\\\\\{0,2\\}\\)\\(\)\\|\\]\\|\}\\)")
+                  (looking-back (concat (regexp-quote (match-string-no-properties 1))
+                                        (regexp-quote (cond ((equal (match-string-no-properties 2) ")")
+                                                             (identity "("))
+                                                            ((equal (match-string-no-properties 2) "]")
+                                                             (identity "["))
+                                                            ((equal (match-string-no-properties 2) "}")
+                                                             (identity "{")))))
+                                (point-at-bol)
+                                nil))
+             (delete-region (- (point) (- (match-end 0) (match-beginning 0)))
+                            (+ (point) (- (match-end 0) (match-beginning 0)))))
+            ((and (not (lattie--math-p))
+                  (eq (char-before) (char-after))
+                  (memq (char-before) '(?* ?/ ?=)))
+             (delete-region (1- (point)) (1+ (point))))
+            ((and (eq (char-before) (char-before (1- (point))))
+                  (memq (char-before) '(?* ?/ ?=))
+                  (not (lattie--math-p)))
+             (if (and (memq major-mode '(org-mode org-journal-mode))
+                      (looking-back "^\\*+" (point-at-bol) nil))
+                 (org-delete-char -1)
+               (delete-region (- (point) 2) (point))))
+            ((looking-back "\\\\\\{0,2\\}\{\\\\\\{0,2\\}\}" (point-at-bol) nil)
+             (delete-region (match-beginning 0) (match-end 0)))
+            ((looking-back "\\\\\\{0,2\\}\\[\\\\\\{0,2\\}\\]" (point-at-bol) nil)
+             (delete-region (match-beginning 0) (match-end 0)))
+            ((looking-back "\\\\\\{0,2\\}\(\\\\\\{0,2\\}\)" (point-at-bol) nil)
+             (delete-region (match-beginning 0) (match-end 0)))
+            ((lattie--right-p)
+             (cond ((and          ;(message "%s" (match-string-no-properties 0))
+                     (string-prefix-p "\\begin{" (substring-no-properties (match-string-no-properties 0) 1 nil))))
+                   ((and          ;(message "%s" (match-string-no-properties 0))
+                     (string-prefix-p "\\end{" (substring-no-properties (match-string-no-properties 0) 1 nil)))
+                    (kill-region (save-match-data
+                                   (re-search-backward
+                                    (regexp-quote (concat "\\begin{"
+                                                          (substring-no-properties (match-string-no-properties 0)
+                                                                                   6
+                                                                                   (- (match-end 0) (match-beginning 0) 1))
+                                                          "}"))
+                                    nil))
+                                 (match-end 0)))
+                   (t (apply #'kill-region
+                             (nreverse (list (point)
+                                             (progn (lattie-left arg) (point))))))))
+            ((and (looking-back "\\\\begin\{\\([^\s$\s-]+\\)\}" (point-at-bol) nil)
+                  (match-string-no-properties 1)
+                  (equal (regexp-quote (match-string-no-properties 1))
+                         (and (looking-at "\n?\\\\end\{\\([^\s$\s-]+\\)\}")
+                              (match-string-no-properties 1))))
+             (delete-region (match-beginning 0)
+                            (match-end 0))
+             (delete-region (point)
+                            (re-search-backward "\\\\begin\{\\([^\s$\s-]+\\)\}")))
+            ((memq major-mode '(org-mode org-journal-mode))
+             (if-let ((context (and (memq major-mode '(org-mode org-journal-mode))
+                                    (org-element-context))))
+                 (cond ((and (eq (car context) 'item)
+                             (org-element-property :checkbox context)
+                             (< (- (point) (org-element-property :begin context)) 7))
+                        (delete-region (point) (+ (org-element-property :begin context)
+                                                  (length (org-element-property :bullet context)))))
+                       ((and (eq (car context) 'item)
+                             (org-element-property :bullet context)
+                             (= (point) (+ (org-element-property :begin context)
+                                           (length (org-element-property :bullet context)))))
+                        (delete-region (point) (org-element-property :begin context)))
+                       ((and (eq (car context) 'headline)
+                             (org-element-property :todo-keyword context)
+                             (< (- (point)
+                                   (length (org-element-property :todo-keyword context))
+                                   (org-element-property :level context)
+                                   (org-element-property :begin context))
+                                3))
+                        (delete-region (point)
+                                       (+ (org-element-property :begin context)
+                                          (org-element-property :level context)
+                                          1)))
+                       (t (let ((pt (point)))
+                            (if (not (eq 0 (skip-syntax-backward "\\s-")))
+                                (delete-region (point) pt)
+                              (unless (eq arg 0) (delete-char (1+ (- arg)))
+                                      (org-delete-char -1))))))
+               (let ((pt (point)))
+                 (if (not (eq 0 (skip-syntax-backward "\\s-")))
+                     (delete-region (point) pt)
+                   (unless (eq arg 0) (delete-char (1+ (- arg)))
+                           (org-delete-char -1))))))
+            (t (let ((pt (point)))
+                 (if (not (eq 0 (skip-syntax-backward "\\s-")))
+                     (delete-region (point) pt)
+                   (unless (eq arg 0) (delete-char (1+ (- arg)))
+                           (delete-char -1)))))))
+
+    (defun lattie-flow ()
+      (cond ((lattie--right-p)
+             (cond ((string-prefix-p "\\begin{" (substring-no-properties (match-string-no-properties 0) 1 nil))
+                    (while (looking-at (concat "\\(\\s-*\\)" lattie-opening-environment-regexp-for-looking-at))
+                      (delete-region (match-beginning 1) (match-end 1))
+                      (insert-char ?\n)
+                      (forward-char (- (match-end 0) (match-end 1))))
+                    (delete-region (point) (progn (skip-syntax-forward "\\s-") (point)))
+                    (insert-char ?\n 2)
+                    (forward-char -1))
+                   ((string-prefix-p "\\end{" (substring-no-properties (match-string-no-properties 0) 1 nil))
+                    (while (looking-back (concat lattie-closing-environment-regexp "\\s-*") (point-at-bol -1))
+                      (re-search-backward lattie-closing-environment-regexp (point-at-bol -1) t)
+                      (forward-char 1)
+                      (delete-region (min (point)
+                                          (progn (skip-chars-backward "\n")
+                                                 (+ 2 (point))))
+                                     (point))
+                      (if (looking-back lattie-opening-environment-regexp-for-looking-at (point-at-bol) t)
+                          (progn (insert-char ?\n 2)
+                                 (forward-char -1))
+                        (insert-char ?\n)
+                        (forward-char -1))))
+                   (t (re-search-backward lattie-closing-math-regexp nil t)
+                      (forward-char 1))))
+            ((lattie--left-p)
+             (cond ((string-prefix-p "\\begin{" (substring-no-properties (match-string-no-properties 0) 1 nil))
+                    ;; (message "left : %s" (match-string-no-properties 0))
+                    (forward-char (- (match-end 0) (match-beginning 0)))
+                    (while (looking-at (concat "\\(\\s-+\\)" lattie-opening-environment-regexp-for-looking-at))
+                      (delete-region (match-beginning 1) (match-end 1))
+                      (insert-char ?\n)
+                      (forward-char (- (match-end 0) (match-end 1))))
+                    (delete-region (point) (progn (skip-syntax-forward "\\s-") (point)))
+                    (insert-char ?\n 2)
+                    (forward-char -1))
+                   (t (re-search-forward lattie-opening-math-regexp nil t))))))
+
+    (defun special-lattie-flow (arg)
+      (interactive "p")
+      (if (lattie--special-p)
+          (lattie-flow)
+        (lattie-self-insert-command arg)))
+
+    (defun special-lattie-newline-and-indent ()
+      (interactive)
+      ;; (if (lattie--special-p)
+      ;;     (lattie-forward 1)
+      (org-return-indent)
+      ;; )
+      )
+
+    (defun special-lattie-forward (arg)
+      (interactive "p")
+      (if (lattie--special-p)
+          (lattie-forward arg)
+        (lattie-self-insert-command arg)))
+
+    (defun lattie-close-bracket (arg)
+      (interactive "p")
+      (cond ((and (looking-back "[^\\]\\\\" (1- (point-at-bol)) nil)
+                  (or (looking-at "\\s-")
+                      (eobp)))
+             (lattie-self-insert-command arg))
+            ((when-let ((context (and (memq major-mode '(org-mode
+                                                         org-journal-mode))
+                                      (org-element-context))))
+               (cond ((and (eq 'headline (car context))
+                           (eq (point)
+                               (+ (org-element-property :level context)
+                                  (org-element-property :begin context)
+                                  1)))
+                      (insert "[ ] "))
+                     ((and (eq 'item (car context))
+                           (eq (point)
+                               (+ (org-element-property :begin context)
+                                  (length (org-element-property :bullet context)))))
+                      (insert "[ ] "))
+                     (t (lattie-forward-or-eol arg)))))
+            (t (lattie-forward-or-eol arg))))
+
+    (defun lattie-forward-or-eol (arg)
+      (if (and (eq (point)
+                   (progn (lattie-forward arg)
+                          (point))))
+          (end-of-line)
+        ""))
+
+    (defun lattie-open-bracket (arg)
+      (interactive "p")
+      (cond ((looking-back "[^\\]\\\\" (1- (point-at-bol)) nil)
+             (insert-char ?\[)
+             (insert-char ?\\)
+             (insert-char ?\])
+             (let ((faces (get-text-property (point) 'face)))
+               (put-text-property (- (point) 4)
+                                  (point)
+                                  'font-lock-face
+                                  (cons 'font-latex-math-face faces)))
+             (forward-char -2))
+            (t (lattie-backward arg))))
+
+    (defun special-lattie-dollar ()
+      (interactive)
+      (let ((lattie--special-p (lattie--special-p)))
+        (cond ((and (not lattie--special-p)
+                    (not (lattie--math-p))
+                    (eq (char-before) ?\s)
+                    (eq (char-before (1- (point))) ?$))
+               (delete-char -1)
+               (forward-char -1)
+               (insert "\\,"))
+              ((or (and (lattie--math-p)
+                        (not lattie--special-p))
+                   (and (eq (char-after) ?$)
+                        (eq (char-before) ?$)))
+               (insert-char ?\[)
+               (insert-char ?\])
+               (forward-char -1))
+              (lattie--special-p
+               (if (memq major-mode '(org-mode org-journal-mode))
+                   (org-end-of-line)
+                 (end-of-line)))
+              (t (cdlatex-dollar)
+                 (let ((faces (get-text-property (point) 'face)))
+                   (put-text-property (1- (point))
+                                      (1+ (point))
+                                      'font-lock-face
+                                      (cons 'font-latex-math-face faces)))))))
+
+    (defun special-lattie-back-to-heading ()
+      (interactive)
+      (cond ((and (lattie--math-p)
+                  (not (lattie--special-p)))
+             (org-cdlatex-underscore-caret))
+            ((org-at-heading-p)
+             (org-up-element))
+            (t (org-back-to-heading)
+               (beginning-of-line))))
+
+    (defun lattie-insert-dollar ()
+      (interactive)
+      (if (lattie--math-p)
+          (insert "\\plus")
+        (org-self-insert-command 1)))
+
+    (defun special-lattie-open-brace ()
+      (interactive)
+      (cond ((looking-back "\\\\\\w*\\|[\\^\_]\\|\}" (point-at-bol) nil)
+             (lattie-self-insert-command 1))
+            ((search-backward "{" (point-at-bol) t)
+             (forward-char 1)
+             (push-mark (match-end 0) t t)
+             (search-forward-regexp "\\\\\\{0,2\\}\}" (point-at-eol) t)
+             (goto-char (match-beginning 0))
+             (delete-selection-mode 0))))
+
+    (defun special-lattie-close-brace ()
+      (interactive)
+      (cond ((looking-at "\\\\\\{1,2\\}\}")
+             (goto-char (match-end 0))
+             (deactivate-mark))
+            ;; ((eq (char-after) ?\])
+            ;;  (forward-char 1))
+            ((looking-at "[\)\}]+")
+             (skip-chars-forward "\)\]\}"))
+            (t (lattie-self-insert-command 1))))
+
+    (defun special-lattie-asterisk ()
+      (interactive)
+      (if (lattie--math-p)
+          (lattie-self-insert-command 1)
+        (if (looking-back "^\\**" (point-at-bol) nil)
+            (lattie-self-insert-command 1)
+          (lattie-self-insert-command 2)
+          (forward-char -1))))
+
+    (defun lattie-open-paren ()
+      (interactive)
+      (if (lattie--math-p)
+          (progn (insert "()")
+                 (forward-char -1))
+        (lattie-self-insert-command 1)))
+
+;;; Non-TeX tricks
+    (defun lattieville-table-previous-row-or-eol ()
+      (interactive)
+      (if (org-at-table-p)
+          (call-interactively #'+org/table-previous-row)
+        (call-interactively #'org-end-of-line)))
+
+    (defun lattie-ctrl-ret ()
+      (interactive)
+      (let ((direction 'below))
+        (if (and (org-at-table-p)
+                 (eq 1 (- (org-table-end)
+                          (point))))
+            (let* ((context
+                    (save-excursion
+                      (goto-char (org-table-begin))
+                      (forward-char -1)
+                      (when (bolp)
+                        (back-to-indentation)
+                        (forward-char))
+                      (org-element-lineage
+                       (org-element-context)
+                       '(table table-row headline inlinetask item plain-list)
+                       t)))
+                   (type (org-element-type context)))
+              (cond ((memq type '(item plain-list))
+                     (let ((marker (org-element-property :bullet context))
+                           (pad (save-excursion
+                                  (org-beginning-of-item)
+                                  (back-to-indentation)
+                                  (- (point) (line-beginning-position)))))
+                       (save-match-data
+                         (pcase 'below
+                           (`below
+                            (org-end-of-item)
+                            (backward-char)
+                            (end-of-line)
+                            (if (and marker (string-match "\\([0-9]+\\)\\([).] *\\)" marker))
+                                (progn (goto-char (plist-get (cadr context) :end))
+                                       (let ((l (line-number-at-pos pt)))
+                                         (org-insert-item)
+                                         (when (= l (line-number-at-pos))
+                                           (org-next-item)
+                                           (org-end-of-line))))
+                              (insert "\n" (make-string pad 32) (or marker ""))))
+                           (`above
+                            (org-beginning-of-item)
+                            (if (and marker (string-match-p "[0-9]+[).]" marker))
+                                (org-insert-item)
+                              (insert (make-string pad 32) (or marker ""))
+                              (save-excursion (insert "\n")))))))
+                     (when (org-element-property :checkbox context)
+                       (insert "[ ] ")))
+
+                    ((memq type '(table table-row))
+                     (pcase direction
+                       ('below (save-excursion (org-table-insert-row t))
+                               (org-table-next-row))
+                       ('above (save-excursion (org-shiftmetadown))
+                               (+org/table-previous-row))))
+
+                    ((memq type '(headline inlinetask))
+                     (let ((level (if (eq (org-element-type context) 'headline)
+                                      (org-element-property :level context)
+                                    1)))
+                       (pcase direction
+                         (`below
+                          (let ((at-eol (>= (point) (1- (line-end-position))))
+                                org-insert-heading-respect-content)
+                            (ignore org-insert-heading-respect-content)
+                            (goto-char (line-end-position))
+                            (org-end-of-subtree)
+                            (insert (concat "\n"
+                                            (when (= level 1)
+                                              (if at-eol
+                                                  (ignore (cl-incf level))
+                                                "\n"))
+                                            (make-string level ?*)
+                                            " "))))
+                         (`above
+                          (org-back-to-heading)
+                          (insert (make-string level ?*) " ")
+                          (save-excursion
+                            (insert "\n")
+                            (if (= level 1) (insert "\n")))))
+                       (when-let* ((todo-keyword (org-element-property :todo-keyword context)))
+                         (org-todo (or (car (+org-get-todo-keywords-for todo-keyword))
+                                       'todo)))))
+
+                    (t (user-error "Not a valid list, heading or table")))
+              (when (org-invisible-p)
+                (org-show-hidden-entry)))
+          (+org-insert-item 'below))))
+
+    (defun special-lattie-space ()
+      (interactive)
+      (unless (and (eq (char-before) ?$)
+                   (not (lattie--at-right-side-of-closing-expression?)))
+        (when (looking-back "[\t\s\n],[a-zA-Z0-9,()]+" (point-at-bol) nil)
+          (insert "$"
+                  (buffer-substring (+ (match-beginning 0) 2)
+                                    (match-end 0))
+                  "$")
+          (delete-region (1+ (match-beginning 0)) (match-end 0))))
+      (if (and (eq (char-after) ?$)
+               (not (lattie--at-left-side-of-opening-expression?)))
+          (let ((faces (get-text-property (point) 'face)))
+            (lattie-self-insert-command 1)
+            (put-text-property (save-excursion (1+ (re-search-backward lattie-dollar-regexp nil t)))
+                               (1+ (point))
+                               'font-lock-face
+                               '(font-latex-math-face)))
+        (lattie-self-insert-command 1)))
+
+    (defun special-lattie-punctuation ()
+      (interactive)
+      (if (and (eq (char-after) ?$)
+               (not (lattie--at-left-side-of-opening-expression?)))
+          (unless (and (eq (char-before) ?$)
+                       (not (lattie--at-right-side-of-closing-expression?)))
+            (when (looking-back "[\s\t\n],[a-zA-Z0-9,]+" (point-at-bol) nil)
+              (insert "$"
+                      (buffer-substring (+ (match-beginning 0) 2)
+                                        (match-end 0))
+                      "$")
+              (delete-region (1+ (match-beginning 0)) (match-end 0))))
+        (if (and (eq (char-before) ?$)
+                 (lattie--at-right-side-of-closing-expression?))
+            (progn (lattie-self-insert-command 1)
+                   (put-text-property (1- (point))
+                                      (point)
+                                      'font-lock-face
+                                      nil))
+          (lattie-self-insert-command 1))))
+
+    ;; (defun special-lattie-minus ()
+    ;;   (interactive)
+    ;;   (when (looking-back ",[a-zA-Z0-9]+" (point-at-bol) nil)
+    ;;     (insert "$"
+    ;;             (buffer-substring (1+ (match-beginning 0)) (match-end 0))
+    ;;             "$")
+    ;;     (delete-region (match-beginning 0) (match-end 0)))
+    ;;   (if (fboundp 'typo-cycle-dashes)
+    ;;       (typo-cycle-dashes 1)
+    ;;     (lattie-self-insert-command 1)))
+
+    (defun special-lattie-toggle-latex-fragment ()
+      (interactive)
+      (if (lattie--special-p)
+          (org-toggle-latex-fragment)
+        (lattie-self-insert-command 1)))
+
+    (defun special-lattie-digit ()
+      (interactive)
+      (if (or (lattie--special-p)
+              ;; (and (eq major-mode 'org-mode)
+              ;;      (org-at-heading-or-item-p))
+              )
+          (call-interactively #'digit-argument)
+        (lattie-self-insert-command 1)))
+
+    (defun special-lattie-digit-or-bol (arg)
+      (interactive "P")
+      (if (or (lattie--special-p)
+              ;; (and (eq major-mode 'org-mode)
+              ;;      (org-at-heading-or-item-p))
+              )
+          (if arg
+              (call-interactively #'digit-argument)
+            (if (eq major-mode '(org-mode org-journal-mode))
+                (org-beginning-of-line)
+              (back-to-indentation)))
+        (lattie-self-insert-command (or arg 1))))
+
+    (defun special-lattie-compile ()
+      (interactive)
+      (if (lattie--special-p)
+          (ignore-errors (org-export-dispatch))
+        (lattie-self-insert-command 1)))
+
+    (map! :map evil-org-mode-map
+          "<return>" #'special-lattie-newline-and-indent
+          [tab] #'org-cycle
+          [C-return] #'lattie-ctrl-ret
+          "C-n" #'org-table-next-row
+          "C-e" #'lattieville-table-previous-row-or-eol
+          "C-i" #'org-table-next-field
+          "C-m" #'org-table-previous-field
+          "C-j" nil
+          "C-k" nil
+          "C-l" nil
+          "C-h" nil)
+
+    (provide 'lattie)))
+
+(after! org
+  (defvar org-format-latex-header-old org-format-latex-header)
+  (setq org-format-latex-header (string-join `(,org-format-latex-header-old
+                                               "\\DeclareMathOperator{\\Hom}{Hom}"
+                                               "\\DeclareMathOperator{\\sSet}{sSet}"
+                                               "\\DeclareMathOperator{\\Ob}{Ob}"
+                                               )
+                                             "\n")))
+
+(after! org
+   (setq org-highlight-latex-and-related '(native script entities)))
 
 (use-package! counsel-org-capture-string
   :commands (counsel-org-capture-string)
@@ -3268,10 +4556,15 @@ mail-count is the count of mails for which the string is to displayed"
 
   (setq mu4e-alert-modeline-formatter #'my-mu4e-alert-mode-line-formatter
         mu4e-alert-notify-repeated-mails t
-        mu4e-alert-email-notification-types '(subjects))
+        mu4e-alert-email-notification-types '(subjects)
+        mu4e-alert-interesting-mail-query "flag:unread AND NOT flag:trashed AND maildir:/outlook/Inbox")
 
   (mu4e-alert-enable-notifications)
   (mu4e-alert-enable-mode-line-display))
+
+(after! mu4e
+  (setq mu4e-update-interval 60
+        mu4e-get-mail-command "true")) ;; Do not fetch mail.
 
 (after! mu4e
   (require 'mu4e-conversation)
@@ -3281,7 +4574,6 @@ mail-count is the count of mails for which the string is to displayed"
 (after! mu4e
   (setq mu4e-save-multiple-attachments-without-asking t
         mu4e-compose-dont-reply-to-self t
-        mu4e-get-mail-command "true" ;; rely on mbsync timer instead
         mu4e-headers-fields '(;; (:account . 12)
                               (:human-date . 12)
                               (:flags . 4)
@@ -3296,15 +4588,15 @@ mail-count is the count of mails for which the string is to displayed"
   (setq mu4e-bookmarks
         `(,(make-mu4e-bookmark
             :name "Unread messages"
-            :query "flag:unread AND NOT flag:trashed"
+            :query "flag:unread AND NOT flag:trashed AND maildir:/outlook/Inbox"
             :key ?u)
           ,(make-mu4e-bookmark
             :name "Today's messages"
-            :query "date:today..now"
+            :query "date:today..now AND NOT flag:trashed AND maildir:/outlook/Inbox"
             :key ?t)
           ,(make-mu4e-bookmark
             :name "Last 7 days"
-            :query "date:7d..now"
+            :query "date:7d..now AND NOT flag:trashed AND maildir:/outlook/Inbox"
             :key ?w)
           ,(make-mu4e-bookmark
             :name "Flagged"
@@ -3312,7 +4604,7 @@ mail-count is the count of mails for which the string is to displayed"
             :key ?f)
           ,(make-mu4e-bookmark
             :name "Inbox"
-            :query "maildir:/outlook/Inbox"
+            :query "maildir:/outlook/Inbox AND NOT flag:trashed"
             :key ?i)
           ,(make-mu4e-bookmark
             :name "Drafts"
@@ -3382,9 +4674,6 @@ mail-count is the count of mails for which the string is to displayed"
 (use-package! bbdb-vcard
   :commands (bbdb-vcard-import-file bbdb-vcard-export))
 
-(after! org
-  (add-to-list 'org-modules 'org-bbdb))
-
 (use-package! org-preview-html
   :commands (org-preview-html/preview
              org-preview-html-mode))
@@ -3404,22 +4693,23 @@ mail-count is the count of mails for which the string is to displayed"
   (setq eshell-module-list
         (delq 'eshell-banner eshell-modules-list)))
 
-(require 'alert)
+(after! eshell
+  (require 'alert)
 
-(defun eshell-command-alert (process status)
-  "Send `alert' with severity based on STATUS when PROCESS finished."
-  (let* ((cmd (process-command process))
-         (buffer (process-buffer process))
-         (msg (format "%s: %s" (mapconcat 'identity cmd " ")  status)))
-    (if (string-prefix-p "finished" status)
-        (alert msg :buffer buffer :severity  'normal)
-      (alert msg :buffer buffer :severity 'urgent))))
+  (defun eshell-command-alert (process status)
+    "Send `alert' with severity based on STATUS when PROCESS finished."
+    (let* ((cmd (process-command process))
+           (buffer (process-buffer process))
+           (msg (format "%s: %s" (mapconcat 'identity cmd " ")  status)))
+      (if (string-prefix-p "finished" status)
+          (alert msg :buffer buffer :severity  'normal)
+        (alert msg :buffer buffer :severity 'urgent))))
 
-(add-hook 'eshell-kill-hook #'eshell-command-alert)
+  (add-hook 'eshell-kill-hook #'eshell-command-alert)
 
-(alert-add-rule :status   '(buried)     ;only send alert when buffer not visible
-                :mode     'eshell-mode
-                :style 'notifications)
+  (alert-add-rule :status   '(buried)   ;only send alert when buffer not visible
+                  :mode     'eshell-mode
+                  :style 'notifications))
 
 (use-package! pdf-tools
   :defer-incrementally t
@@ -3430,7 +4720,12 @@ mail-count is the count of mails for which the string is to displayed"
                                        "-o" "media=letter"))
   (delq 'pdf-misc-size-indication-minor-mode pdf-tools-enabled-modes)
   (delq 'pdf-misc-context-menu-minor-mode pdf-tools-enabled-modes)
-  (delq 'pdf-misc-menu-bar-minor-mode pdf-tools-enabled-modes))
+  (delq 'pdf-misc-menu-bar-minor-mode pdf-tools-enabled-modes)
+
+  (when (featurep! :editor evil)
+    (map! :map pdf-view-mode-map
+          :n "J" #'pdf-view-next-page
+          :n "K" #'pdf-view-previous-page)))
 
 (after! proof-splash
   (setq proof-splash-enable nil))
@@ -3446,3 +4741,6 @@ mail-count is the count of mails for which the string is to displayed"
 (after! company-coq
   (setq company-coq-live-on-the-edge t
         company-coq-disabled-features '(hello)))
+
+(when (featurep! :editor lispy)
+  (autoload 'cider-start-map "cider" "CIDER jack-in and connect keymap." t 'keymap))

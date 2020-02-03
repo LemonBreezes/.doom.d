@@ -1,7 +1,8 @@
 ;; -*- no-byte-compile: t; -*-
 ;;; ~/.doom.d/packages.el
 
-(disable-packages! company-posframe)
+(disable-packages! helm-mode
+                   org-bullets)
 (package! auto-async-byte-compile)
 (package! feebleline)
 (package! show-eol)
@@ -106,3 +107,15 @@
 (package! calfw-cal)
 (package! calfw-ical)
 (package! calfw-howm)
+(package! org-sticky-header)
+(package! cdlatex)
+(package! vterm :built-in t)
+(package! typo)
+(package! doct :recipe
+  (:host github :repo "progfolio/doct" :files ("*")))
+(package! direnv)
+(package! org-graph-view :recipe
+  (:host github :repo "alphapapa/org-graph-view" :files ("*")))
+(package! elcord)
+(package! sunrise-commander)
+(package! perfect-margin)

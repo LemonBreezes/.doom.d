@@ -25,6 +25,9 @@
 ;; Prefer a fresh .el file over an outdated .elc counterpart
 (setq load-prefer-newer t)
 
+;; Do not take my C-c p prefix
+(defvar persp-keymap-prefix "P")
+
 (doom! :input
        ;;chinese
        ;;japanese
@@ -37,11 +40,11 @@
        (ivy                             ; a search engine for love and life
         +prescient
         +childframe
-        ;; +icons
+        ;;+icons
         )
 
        :ui
-       ;; deft              ; notational velocity for Emacs
+       ;;deft              ; notational velocity for Emacs
        doom                             ; what makes DOOM look the way it does
        doom-dashboard                   ; a nifty splash screen for Emacs
        ;;doom-quit         ; DOOM quit-message prompts when you quit Emacs
@@ -84,17 +87,16 @@
        :emacs
        (dired                           ; making dired pretty [functional]
         ;; +ranger
-        +icons
-        )
+        +icons)
        electric                   ; smarter, keyword-based electric-indent
        ibuffer                    ; interactive buffer management
        vc                         ; version-control and Emacs, sitting in a tree
 
        :term
-       eshell                    ; a consistent, cross-platform shell (WIP)
+       eshell   ; a consistent, cross-platform shell (WIP)
        ;;shell             ; a terminal REPL for Emacs
-       ;;term              ; terminals in Emacs
-       vterm                            ; another terminals in Emacs
+       term     ; terminals in Emacs
+       ;; vterm                            ; another terminals in Emacs
 
        :checkers
        (syntax +childframe)          ; tasing you for every semicolon you forget
@@ -111,7 +113,7 @@
        (eval +overlay)       ; run code, run (also, repls)
        ;;gist              ; interacting with github gists
        (lookup                  ; helps you navigate your code and documentation
-        +docsets               ; ...or in Dash docsets locally
+        +docsets                ; ...or in Dash docsets locally
         +offline)
        lsp
        ;;macos             ; MacOS-specific commands
@@ -131,7 +133,7 @@
        cc                               ; C/C++/Obj-C madness
        ;;clojure           ; java with a lisp
        ;;common-lisp       ; if you've seen one lisp, you've seen them all
-       ;;coq               ; proofs-as-programs
+       coq               ; proofs-as-programs
        ;;crystal           ; ruby at the speed of c
        ;;csharp            ; unity, .NET, and mono shenanigans
        data                         ; config/data formats

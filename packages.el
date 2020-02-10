@@ -119,3 +119,21 @@
 (package! elcord)
 (package! sunrise-commander)
 (package! perfect-margin)
+(package! org-fragtog :recipe
+  (:host github :repo "io12/org-fragtog" :files ("*")))
+(package! texfrag)
+(package! sx)
+(package! lorem-ipsum)
+(package! helm-emms)
+(package! 2048-game :recipe
+  (:host github :repo "emacsmirror/2048-game" :files ("2048-game.el")))
+(package! minesweeper :recipe
+  (:host github :repo "emacsmirror/minesweeper" :files ("minesweeper.el")))
+(package! language-detection :recipe
+  (:host github :repo "andreasjansson/language-detection.el" :files ("*")))
+(package! helm-eww)
+(package! somafm :recipe
+  (:host github :repo "artenator/somafm.el" :files ("*")))
+(package! om :recipe
+  (:host github :repo "ndwarshuis/om.el" :files ("*")))
+(package! switch-window)

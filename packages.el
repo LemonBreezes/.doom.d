@@ -1,23 +1,22 @@
 ;; -*- no-byte-compile: t; -*-
 ;;; ~/.doom.d/packages.el
 
-(disable-packages! helm-mode
-                   org-bullets)
-(package! auto-async-byte-compile)
+(disable-packages! helm-mode evil-escape)
+;; (package! auto-async-byte-compile)
 (package! feebleline)
 (package! show-eol)
 (package! ivy-youtube)
 (package! anzu)
-(package! emms)
 (package! emms-mode-line-cycle)
-(package! org-caldav)
 (package! secretaria)
-(package! org-caldav)
 (package! mu4e-conversation)
-(package! annot :recipe
-  (:host github :repo "ghoshi/annot" :files ("src/annot.el")))
+(package! wolfram-mode)
+;; (package! annot :recipe (:host github :repo "ghoshi/annot" :files
+;;   ("src/annot.el")))
+(package! annot :built-in)
+(package! flx :built-in)
 (package! pinentry)
-(package! eldoc-box)
+;; (package! eldoc-box)
 (package! keyfreq)
 (package! auto-capitalize :recipe
   (:host github :repo "yuutayamada/auto-capitalize-el" :files ("auto-capitalize.el")))
@@ -27,15 +26,15 @@
 (package! forecast)
 (package! super-save :recipe
   (:host github :repo "bbatsov/super-save" :files ("super-save.el")
-         :no-byte-compile t))
+   :no-byte-compile t))
 (package! howm)
-(package! lsp-haskell)
 (package! mu4e-alert)
 (package! tldr)
 (package! disk-usage)
 (package! speed-type)
 (package! spray)
-(package! md4rd)
+;; (package! md4rd)
+(package! org-special-block-extras :recipe (:host github :repo "alhassy/org-special-block-extras"))
 (package! fireplace)
 (package! faith)
 (package! jumblr)
@@ -48,79 +47,75 @@
 (package! disk-usage)
 (package! spray)
 (package! cl-format)
-(package! agda-mode :built-in t)
-(package! ebdb)
+;; (package! agda-mode :built-in t)
+(package! irony :built-in t)
+(package! flycheck-irony)
+(package! company-irony)
+(package! company-irony-c-headers)
+(package! lsp-haskell)
+;; (package! ebdb)
+(package! ranger)
+;; (package! org-beautify-theme)
 (package! bbdb)
-(package! emacs-application-framework :recipe
-  (:host github :repo "manateelazycat/emacs-application-framework" :files ("*")))
 (package! helm-mu)
 (package! counsel-org-clock)
 (package! w3m)
 (package! anzu)
-(package! wiki-summary)
 (package! synosaurus)
 (package! wordnut)
 (package! page-break-lines)
 (package! exwm-mff)
 (package! company-posframe)
 (package! company-quickhelp)
-(package! org-tanglesync)
+;; (package! org-tanglesync)
 (package! org-ql)
 (package! org-sidebar)
-(package! orly :recipe
-  (:host github :repo "abo-abo/orly" :files ("*")))
+(package! orly :recipe (:host github :repo "abo-abo/orly"))
 (package! company-org-block :recipe
   (:host github :repo "xenodium/dotsies"
-                   :files ("emacs/ar/company-org-block.el")))
-(package! org-autolist)
+   :files ("emacs/ar/company-org-block.el")))
+;; (package! org-autolist)
 (package! org-bookmark-heading)
-(package! org-entry-links :recipe
-  (:host github :repo "akirak/org-entry-links" :files ("*")))
-(package! counsel-org-capture-string :recipe
-  (:host github :repo "akirak/counsel-org-capture-string" :files ("*")))
+(package! org-entry-links :recipe (:host github :repo "akirak/org-entry-links"))
+(package! counsel-org-capture-string :recipe (:host github :repo "akirak/counsel-org-capture-string"))
 (package! ace-link)
 (package! el-patch)
-(package! memoize :recipe
-  (:host github :repo "skeeto/emacs-memoize" :files ("*")))
-(package! elsa)
-(package! flycheck-elsa)
-(package! cider)
+;; (package! elsa)
+;; (package! flycheck-elsa)
+;; (package! cider)
 (package! helm-systemd)
 (package! org-make-toc)
-(package! org-msg)
+;; (package! org-msg)
 (package! htmlize)
 (package! org-bookmark-heading)
 (package! aggressive-indent)
 (package! dired-a)
-(package! ranger)
+;; (package! ranger)
 (package! enwc)
 (package! proced)
 (package! bluetooth)
-(package! motion-and-kill-dwim)
+;; (package! motion-and-kill-dwim)
 (package! org-noter)
 (package! org-preview-html)
 (package! bbdb-vcard)
-(package! lozenge :recipe
-  (:host github :repo "Kungsgeten/lozenge.el" :files ("*")))
+(package! lozenge :recipe (:host github :repo "Kungsgeten/lozenge.el"))
 (package! xmlgen)
 (package! arduino-mode)
 (package! calfw-cal)
 (package! calfw-ical)
 (package! calfw-howm)
-(package! org-sticky-header)
+;; (package! org-sticky-header)
 (package! cdlatex)
-(package! vterm :built-in t)
-(package! typo)
-(package! doct :recipe
-  (:host github :repo "progfolio/doct" :files ("*")))
+;; (package! typo)
+(package! doct :recipe (:host github :repo "progfolio/doct"))
 (package! direnv)
-(package! org-graph-view :recipe
-  (:host github :repo "alphapapa/org-graph-view" :files ("*")))
+(package! org-graph-view :recipe (:host github :repo "alphapapa/org-graph-view"
+                                  :no-byte-compile t))
 (package! elcord)
-(package! sunrise-commander)
+(package! org-superstar :recipe (:host github :repo "dw-github-mirror/org-superstar-mode"))
+(package! sunrise-commander :recipe (:host github :repo "sunrise-commander/sunrise-commander"))
 (package! perfect-margin)
-(package! org-fragtog :recipe
-  (:host github :repo "io12/org-fragtog" :files ("*")))
+;; (package! org-fragtog :recipe (:host github :repo "io12/org-fragtog"))
 (package! texfrag)
 (package! sx)
 (package! lorem-ipsum)
@@ -129,11 +124,166 @@
   (:host github :repo "emacsmirror/2048-game" :files ("2048-game.el")))
 (package! minesweeper :recipe
   (:host github :repo "emacsmirror/minesweeper" :files ("minesweeper.el")))
-(package! language-detection :recipe
-  (:host github :repo "andreasjansson/language-detection.el" :files ("*")))
+(package! language-detection :recipe (:host github :repo "andreasjansson/language-detection.el"))
 (package! helm-eww)
-(package! somafm :recipe
-  (:host github :repo "artenator/somafm.el" :files ("*")))
-(package! om :recipe
-  (:host github :repo "ndwarshuis/om.el" :files ("*")))
+(package! somafm :recipe (:host github :repo "artenator/somafm.el"))
+(package! om :recipe (:host github :repo "ndwarshuis/om.el"))
 (package! switch-window)
+(package! alarm-clock :recipe (:host github :repo "wlemuel/alarm-clock"))
+(package! ellocate :recipe (:host github :repo "walseb/ellocate"))
+;; (package! org-mru-clock :recipe (:host github :repo "unhammer/org-mru-clock"))
+(package! elescope :recipe (:host github :repo "freesteph/elescope"))
+(package! circadian :recipe (:host github :repo "guidoschmidt/circadian.el"))
+(package! org-fancy-priorities :recipe (:host github :repo "harrybournis/org-fancy-priorities"))
+(package! ellocate :recipe (:host github :repo "walseb/ellocate"))
+(package! helm-tail :recipe (:host github :repo "akirak/helm-tail"))
+(package! org-gcal :recipe (:host github :repo "kidd/org-gcal.el"))
+;; (package! minimap)
+(package! anaphora)
+(package! promise)
+(package! elquery)
+(package! font-utils)
+(package! ucs-utils)
+;; (package! mini-frame :recipe
+;;   (:host github :repo "muffinmad/emacs-mini-frame" :files ("mini-frame.el")))
+(package! nov :recipe (:host github :repo "wasamasa/nov.el"))
+(package! steam :recipe (:host github :repo "Kungsgeten/steam.el"))
+(package! geoclue :recipe (:host github :repo "ieure/geoclue"))
+(package! decide :recipe (:host github :repo "lifelike/decide-mode"))
+(package! comint-intercept)
+(package! exec-path-from-shell)
+(package! shrface :recipe (:host github :repo "chenyanming/shrface"))
+(package! inherit-org :recipe (:host github :repo "chenyanming/inherit-org"))
+(package! shr-tag-pre-highlight :recipe (:host github :repo "xuchunyang/shr-tag-pre-highlight.el"))
+(package! dired-show-readme :recipe (:host gitlab :repo "kisaragi-hiu/dired-show-readme"))
+(package! sublimity)
+(package! org-treeusage :recipe (:host github :repo "mtekman/org-treeusage.el"))
+(package! helm-wikipedia :recipe (:host github :repo "emacs-helm/helm-wikipedia"))
+(package! paperless)
+(package! native-complete :recipe (:host github :repo "CeleritasCelery/emacs-native-shell-complete"))
+(package! company-native-complete :recipe (:host github :repo "CeleritasCelery/emacs-native-shell-complete"))
+(package! leetcode :recipe (:host github :repo "kaiwk/leetcode.el"))
+(package! company-tabnine :recipe (:host github :repo "TommyX12/company-tabnine"))
+(package! exwm-edit :recipe (:host github :repo "sarg/exwm-edit" :branch "fix-display"))
+(package! aweshell :recipe (:host github :repo "manateelazycat/aweshell"))
+(package! pcomplete-declare :recipe (:host github :repo "xFA25E/pcomplete-declare"))
+(package! pcmpl-git :recipe (:host github :repo "leoliu/pcmpl-git-el"))
+(package! spotify :recipe (:host github :repo "danielfm/spotify.el"))
+(package! wakatime-mode)
+(package! orderless :recipe (:host github :repo "oantolin/orderless"))
+(package! company-fuzzy :recipe (:host github :repo "jcs-elpa/company-fuzzy"))
+(package! org-web-tools :recipe (:host github :repo "alphapapa/org-web-tools"))
+(package! clipmon)
+(package! org-ref)
+(package! org-roam-bibtex :recipe (:host github :repo "org-roam/org-roam-bibtex"))
+(package! flames-of-freedom :recipe (:host github :repo "wiz21b/FlamesOfFreedom"))
+(package! snow :recipe (:host github :repo "alphapapa/snow.el"))
+(package! org-link-beautify :recipe (:host github :repo "stardiviner/org-link-beautify"))
+(package! focus)
+(package! x86-lookup)
+(package! nasm-mode)
+(package! emms :built-in t)
+(package! exwm-firefox-evil :recipe (:host github :repo "walseb/exwm-firefox-evil"))
+(package! org-random-todo :recipe (:host github :repo "unhammer/org-random-todo"))
+(package! iasm-mode :recipe (:host github :repo "RAttab/iasm-mode"))
+(package! ob-latex-as-png :recipe (:host github :repo "alhassy/ob-latex-as-png"))
+(package! imenu-list :recipe (:host github :repo "bmag/imenu-list"))
+(package! ivy-posframe)
+(package! helm-icons)
+(package! helm-ext)
+(package! historian :recipe (:host github :repo "PythonNut/historian.el" :files ("*")))
+(package! ivy-avy)
+(package! org-sticky-header)
+
+;; Newly added packages
+(package! flx-isearch)
+(package! ivy-emms)
+(package! ace-jump-helm-line)
+(package! helm-org-rifle)
+(package! picpocket)
+(package! amread-mode)
+(package! schrute)
+;; (package! rainbow-fart)
+(package! emms-get-lyrics)
+(package! eshell-syntax-highlighting
+  :recipe (:host github :repo "akreisher/eshell-syntax-highlighting"))
+(package! explain-pause-mode :recipe (:host github
+                                      :repo "lastquestion/explain-pause-mode"))
+(package! valign :recipe (:host github :repo "casouri/valign"))
+(package! exwm-firefox :recipe (:host github :repo "ieure/exwm-firefox"))
+(package! counsel-ffdata :recipe (:host github :repo "cireu/counsel-ffdata"))
+(package! emojify :recipe (:host github :repo "iqbalansari/emacs-emojify"))
+(package! djvu)
+(package! epaint :recipe (:host github :repo "chuntaro/epaint"))
+(package! org-pandoc-import
+  :recipe (:host github
+           :repo "tecosaur/org-pandoc-import"
+           :files ("*.el" "filters" "preprocessors")))(package! mu4e-views :recipe (:host github :repo "lordpretzel/mu4e-views"))
+
+;; Packages to check out
+(package! helm-linux-disks :recipe (:host github :repo "akirak/helm-linux-disks"))
+(package! bug-hunter :recipe (:host github :repo "Malabarba/elisp-bug-hunter"))
+(package! org-super-agenda :recipe (:host github :repo "alphapapa/org-super-agenda"))
+
+;; Music!
+(package! mpv)
+(package! esqlite)
+(package! pcsv)
+(package! esxml :recipe (:host github :repo "tali713/esxml"))
+(package! vuiet :recipe (:host github :repo "mihaiolteanu/vuiet"))
+(package! lastfm :recipe (:host github :repo "mihaiolteanu/lastfm.el"))
+(package! versuri :recipe (:host github :repo "mihaiolteanu/versuri"))
+;; emacs-chat?
+
+;; https://github.com/mtekman/elisp-depmap.el
+;; https://github.com/marcIhm/org-working-set
+;; https://github.com/danielmartin/regexp-expand
+;; https://github.com/pauldub/activity-watch-mode
+;; https://github.com/SebastianMeisel/journalctl-mode
+
+;; Another stack overflow package?
+;; https://github.com/thanhvg/emacs-howdoyou
+
+;; (package! org-krita :recipe (:host github :repo "lepisma/org-krita"))
+;; (package! calibredb :recipe (:host github :repo "chenyanming/calibredb.el"))
+;; (package! remind-bindings :recipe (:host github :repo "mtekman/remind-bindings.el"))
+;; (package! org-now :recipe (:host github :repo "alphapapa/org-now"))
+;; (package! org-recent-headings :recipe (:host github :repo "alphapapa/org-recent-headings"))
+;; (package! hackernews :recipe (:host github :repo "clarete/hackernews.el"))
+;; (package! hnreader :recipe (:host github :repo "thanhvg/emacs-hnreader"))
+;; Don't know what org glance does
+;; (package! org-glance :recipe (:host github :repo "rails-to-cosmos/org-glance"))
+;; (package! load-relative :recipe (:host github :repo "rocky/emacs-load-relative"))
+;; (package! aes :recipe (:host github :repo "Sauermann/emacs-aes"))
+
+;; FIXME Read the Bible from Emacs -Diatheke package missing!-
+;; (package! sword-to-org :recipe (:host github :repo "alphapapa/sword-to-org"))
+
+;; (package! org-offtime :recipe (:host github :repo "akirak/org-offtime"))
+
+;; org timeline?
+;; isolate? for pairs
+;; another of Akirak's org package   https://github.com/akirak/org-reverse-datetree
+;; convert lists to tables https://github.com/dfeich/org-listcruncher
+;; TODO super badass filtering in ivy-occur https://github.com/dp12/double-saber
+;; total clocked time display https://github.com/mallt/org-clock-today-mode
+;; Write Google prefix? (Helm Google suggestions, Google Translate, Youtube, etc.)
+;; org kindle? https://github.com/stardiviner/org-kindle
+;; gnus-style scoring for el-feed? https://github.com/sp1ff/elfeed-score
+
+;; Maybe check out again one day?
+;; (package! org-multi-wiki :recipe (:host github :repo "akirak/org-multi-wiki"))
+;; (package! bufler :recipe (:host github :repo "alphapapa/bufler.el"))
+;; (package! org-menu-mode :recipe (:host github :repo "integral-dw/org-menu-mode"))
+;; (package! hydra-posframe :recipe (:host github :repo "Ladicle/hydra-posframe"))
+;; (package! major-mode-hydra :recipe (:host github :repo "jerrypnz/major-mode-hydra.el"))
+;; (package! elcontext :recipe (:host github :repo "rollacaster/elcontext"))
+;; (package! pdfgrep :recipe (:host github :repo "jeremy-compostella/pdfgrep"))
+;; (package! org-quick-peek :recipe (:host github :repo "alphapapa/org-quick-peek"))
+
+
+;; Less likely to be checked out again
+;; (package! helm-lines :recipe (:host github :repo "torgeir/helm-lines.el"))
+;; (package! org-kindle :recipe (:host github :repo "stardiviner/org-kindle"))
+;; (package! org-caldav)
+;; (package! ivy-omni-org :recipe (:host github :repo "akirak/ivy-omni-org"))
